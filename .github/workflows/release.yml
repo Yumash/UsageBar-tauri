@@ -51,9 +51,7 @@ jobs:
           releaseBody: |
             ### What’s new
 
-            - **Shaped frost:** Blur sits inside the D-shaped dock and a separate circular gear cabin. No more rectangular leaks at the ends, or a fused frost slab between the bar and the gear.
-            - **Always-visible gear cabin.** Hover the gear to open settings; move away to close. Right-click the bar pins the panel.
-            - **App icon:** Dock, menu bar, or neither (default). Menu-bar **UB** is quit-only; settings stay on the gear.
+            - **Windows: Providers panel stays open.** Opening **Providers…** from a hover-opened gear menu no longer flashes shut when the tip window resizes ([#7](https://github.com/rayelzz/UsageBar-tauri/issues/7)). Hover the gear still closes on move-away; clicking in the panel or right-clicking the bar pins it.
 
             See [CHANGELOG.md](https://github.com/rayelzz/UsageBar-tauri/blob/main/CHANGELOG.md) for the full history.
 
@@ -77,9 +75,7 @@ jobs:
 
             ### 更新说明
 
-            - **磨砂跟 D 形条身和独立齿轮舱走。** 不再整块矩形漏直角，条和齿轮之间也不再糊成一块。
-            - **齿轮舱一直在。** 悬停打开设置，移开关闭。右键条钉住面板。
-            - **应用图标：** 程序坞 / 菜单栏 / 都不显示（默认）。菜单栏 **UB** 只留退出；设置仍在齿轮。
+            - **Windows 上提供商面板不再闪关。** 悬停打开齿轮菜单后再点 **提供商…**，tip 改尺寸时不会立刻关掉（[#7](https://github.com/rayelzz/UsageBar-tauri/issues/7)）。悬停齿轮仍是移开关闭；点进面板或右键条会钉住。
 
             完整记录见 [CHANGELOG.md](https://github.com/rayelzz/UsageBar-tauri/blob/main/CHANGELOG.md)。
 

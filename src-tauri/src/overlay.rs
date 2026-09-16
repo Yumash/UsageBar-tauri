@@ -308,7 +308,9 @@ fn update_hover(
         emit_hover(app, state, None);
         return;
     }
-    let hot = over_tip(app, mx, my);
+    // 菜单开着时优先用 MENU_CARD：Windows 上 tip 改尺寸会短暂 is_visible=false
+    // 或 outer_size 滞后，live 窗口命中会漏，悬停菜单就被 100ms 定时器关掉。
+    let hot = pointer_over_tip(app, scale, mx, my);
     emit_tip_hot(app, state, hot);
     if hot {
         return;
@@ -383,15 +385,49 @@ fn over_card(card: Option<[f64; 4]>, scale: f64, mx: f64, my: f64) -> bool {
     let Some([x, y, w, h]) = card else {
         return false;
     };
+    cursor_hits_logical_rect(scale, x, y, w, h, mx, my)
+}
+
+/// 卡片存在逻辑坐标里；cursor_position 有的运行时给物理像素，有的已是逻辑坐标。
+fn cursor_hits_logical_rect(scale: f64, x: f64, y: f64, w: f64, h: f64, mx: f64, my: f64) -> bool {
+    let pad = 16.0;
     let hit = |s: f64| {
-        mx >= x * s - 16.0
-            && mx <= (x + w) * s + 16.0
-            && my >= y * s - 16.0
-            && my <= (y + h) * s + 16.0
+        mx >= x * s - pad
+            && mx <= (x + w) * s + pad
+            && my >= y * s - pad
+            && my <= (y + h) * s + pad
     };
     let s = if scale > 0.0 { scale } else { 1.0 };
-    // cursor_position 有的运行时给物理像素，有的已是逻辑坐标。两种都算上，避免点在卡片上却被当成外部关闭。
     hit(s) || hit(1.0)
+}
+
+/// 窗口 outer_* 是物理像素；mx 可能是物理或逻辑。
+fn cursor_hits_physical_rect(
+    scale: f64,
+    px: f64,
+    py: f64,
+    pw: f64,
+    ph: f64,
+    mx: f64,
+    my: f64,
+) -> bool {
+    let pad = 16.0;
+    let hit = |ox: f64, oy: f64, ow: f64, oh: f64| {
+        mx >= ox - pad && mx <= ox + ow + pad && my >= oy - pad && my <= oy + oh + pad
+    };
+    if hit(px, py, pw, ph) {
+        return true;
+    }
+    let s = if scale > 0.0 { scale } else { 1.0 };
+    if (s - 1.0).abs() <= f64::EPSILON {
+        return false;
+    }
+    hit(px / s, py / s, pw / s, ph / s)
+}
+
+/// 菜单开着时，改尺寸瞬间 live tip 窗口可能不可见或矩形过时，要用已写入的 MENU_CARD。
+fn pointer_over_menu(menu_open: bool, over_live_tip: bool, over_menu_card: bool) -> bool {
+    over_live_tip || (menu_open && over_menu_card)
 }
 
 fn over_menu_card(scale: f64, mx: f64, my: f64) -> bool {
@@ -410,7 +446,13 @@ fn over_update_card(scale: f64, mx: f64, my: f64) -> bool {
     over_card(card, scale, mx, my)
 }
 
-fn over_tip(app: &AppHandle, mx: f64, my: f64) -> bool {
+fn pointer_over_tip(app: &AppHandle, scale: f64, mx: f64, my: f64) -> bool {
+    let menu_open = MENU_OPEN.load(Ordering::Relaxed);
+    let on_menu_card = menu_open && over_menu_card(scale, mx, my);
+    pointer_over_menu(menu_open, over_live_tip(app, scale, mx, my), on_menu_card)
+}
+
+fn over_live_tip(app: &AppHandle, scale: f64, mx: f64, my: f64) -> bool {
     let Some(tip) = app.get_webview_window("tip") else {
         return false;
     };
@@ -423,10 +465,15 @@ fn over_tip(app: &AppHandle, mx: f64, my: f64) -> bool {
     let Ok(size) = tip.outer_size() else {
         return false;
     };
-    mx >= pos.x as f64 - 8.0
-        && mx <= pos.x as f64 + size.width as f64 + 8.0
-        && my >= pos.y as f64 - 8.0
-        && my <= pos.y as f64 + size.height as f64 + 8.0
+    cursor_hits_physical_rect(
+        scale,
+        pos.x as f64,
+        pos.y as f64,
+        size.width as f64,
+        size.height as f64,
+        mx,
+        my,
+    )
 }
 
 fn emit_tip_hot(app: &AppHandle, state: &Overlay, hot: bool) {
@@ -956,5 +1003,53 @@ mod tests {
         prefs.last_x = 2100.0;
         prefs.last_y = 200.0;
         assert_eq!(pick_screen(&list, &prefs).unwrap().name, "HDMI");
+    }
+
+    #[test]
+    fn logical_card_hits_physical_cursor_on_scaled_display() {
+        let card = Some([100.0, 200.0, 216.0, 400.0]);
+        let scale = 1.5;
+        assert!(over_card(card, scale, 100.0 * scale + 10.0, 200.0 * scale + 10.0));
+    }
+
+    #[test]
+    fn logical_card_hits_logical_cursor() {
+        let card = Some([100.0, 200.0, 216.0, 400.0]);
+        assert!(over_card(card, 1.5, 110.0, 210.0));
+    }
+
+    #[test]
+    fn logical_card_misses_far_away_cursor() {
+        let card = Some([100.0, 200.0, 216.0, 400.0]);
+        assert!(!over_card(card, 1.5, 10.0, 10.0));
+    }
+
+    /// 旧 over_tip 只拿物理窗口去比，Windows 上 cursor 若是逻辑坐标会整块判飞。
+    fn old_over_tip_physical_only(px: f64, py: f64, pw: f64, ph: f64, mx: f64, my: f64) -> bool {
+        mx >= px - 8.0 && mx <= px + pw + 8.0 && my >= py - 8.0 && my <= py + ph + 8.0
+    }
+
+    #[test]
+    fn windows_logical_cursor_misses_physical_only_tip_hit() {
+        // 逻辑 (100,200) 216×400，150% DPI → 物理 (150,300) 324×600
+        let (px, py, pw, ph) = (150.0, 300.0, 324.0, 600.0);
+        let (mx, my) = (110.0, 210.0);
+        assert!(!old_over_tip_physical_only(px, py, pw, ph, mx, my));
+        assert!(cursor_hits_physical_rect(1.5, px, py, pw, ph, mx, my));
+    }
+
+    #[test]
+    fn physical_cursor_still_hits_physical_tip() {
+        assert!(cursor_hits_physical_rect(
+            1.5, 150.0, 300.0, 324.0, 600.0, 160.0, 310.0
+        ));
+    }
+
+    #[test]
+    fn menu_stays_hot_from_card_when_live_tip_vanishes_during_resize() {
+        assert!(pointer_over_menu(true, false, true));
+        assert!(!pointer_over_menu(true, false, false));
+        assert!(pointer_over_menu(false, true, false));
+        assert!(!pointer_over_menu(false, false, true));
     }
 }

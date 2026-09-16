@@ -2715,6 +2715,8 @@ async function placeMenuOverlay(winW, needH, reposition) {
   const sizeChanged =
     !menuCardFrame || menuCardFrame.w !== winW || Math.abs((menuCardFrame.h || 0) - needH) > 2;
   if (reposition || !wasOpen || sizeChanged) {
+    // 改尺寸期间 Windows WebView2 会误报 pointerleave，先清掉即将关闭的定时器。
+    cancelHoverMenuClose();
     const pos = await getCurrentWindow().outerPosition();
     const size = await getCurrentWindow().outerSize();
     const scale = await getCurrentWindow().scaleFactor();
@@ -2772,6 +2774,11 @@ function cancelHoverMenuClose() {
   }
 }
 
+function pinOpenMenu() {
+  cancelHoverMenuClose();
+  if (menuOpen) menuHold = "pin";
+}
+
 function scheduleHoverMenuClose() {
   cancelHoverMenuClose();
   menuLeaveTimer = setTimeout(() => {
@@ -2810,10 +2817,13 @@ async function showPanelMenu(reposition = true, hold) {
   if (!wasOpen || reposition) {
     await tipWin?.show();
     refreshWindowBlur();
-    try {
-      await tipWin?.setFocus();
-    } catch {
-      /* optional */
+    // 已经打开时再 setFocus，Windows 上会闪一下并打乱指针命中。
+    if (!wasOpen) {
+      try {
+        await tipWin?.setFocus();
+      } catch {
+        /* optional */
+      }
     }
   }
   if (updateToastOpen) await layoutUpdateCard();
@@ -2823,6 +2833,8 @@ async function showPanelMenu(reposition = true, hold) {
 }
 
 async function showProvidersPanel(reposition = true) {
+  // 提供商面板要改窗口宽高；悬停态在 Windows 上会因误报 leave 闪一下关掉。
+  pinOpenMenu();
   menuPage = "providers";
   const st = {
     locale: isZh() ? "zh" : "en",
@@ -2848,10 +2860,12 @@ async function showProvidersPanel(reposition = true) {
   if (!wasOpen || reposition) {
     await tipWin?.show();
     refreshWindowBlur();
-    try {
-      await tipWin?.setFocus();
-    } catch {
-      /* optional */
+    if (!wasOpen) {
+      try {
+        await tipWin?.setFocus();
+      } catch {
+        /* optional */
+      }
     }
   }
   if (updateToastOpen) await layoutUpdateCard();
@@ -2880,6 +2894,7 @@ async function handleMenuAction(id) {
     await closeMenuPanel();
     return;
   }
+  pinOpenMenu();
   if (id === "checkupdate") {
     if (menuInstalling) return;
     await checkUpdateManual({ showNotes: true });
@@ -3063,6 +3078,9 @@ async function startBar() {
   });
   await api().event.listen("usagebar-menu", (e) => {
     handleMenuAction(e.payload).catch((err) => console.error(err));
+  });
+  await api().event.listen("usagebar-menu-hold", (e) => {
+    if (e.payload === "pin") pinOpenMenu();
   });
   await api().event.listen("usagebar-reopen", () => {
     showPanelMenu(true, "pin").catch((err) => console.error(err));
@@ -3605,6 +3623,9 @@ async function startTip() {
     api().event.emit("usagebar-tip-hover", false).catch(() => {});
   });
   tipRoot.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".menu-card")) {
+      api().event.emit("usagebar-menu-hold", "pin").catch(() => {});
+    }
     if (e.target.closest("[data-look-reset]")) e.stopPropagation();
     if (!e.target.closest("input[type=range][data-look]")) return;
     lookDragging = true;

@@ -6,6 +6,10 @@ Notable changes to UsageBar. Dates are UTC+8.
 
 ## English
 
+### 0.0.28 — 2026-09-11
+
+- **Windows: Providers panel stays open.** Opening **Providers…** from a hover-opened gear menu no longer flashes shut when the tip window resizes ([#7](https://github.com/rayelzz/UsageBar-tauri/issues/7)). Hover the gear still closes on move-away; clicking in the panel or right-clicking the bar pins it.
+
 ### 0.0.27 — 2026-09-10
 
 - **Frost follows the D-shaped dock and a separate gear cabin.** Blur no longer paints a full-window rectangle with square leaks at the ends, or fuses the gap between the bar and the gear into one slab. The wall-side still hugs the screen.
@@ -144,6 +148,10 @@ Notable changes to UsageBar. Dates are UTC+8.
 - First public build: Codex, Cursor, Grok, GLM edge bar.
 
 ## 中文
+
+### 0.0.28 — 2026-09-11
+
+- **Windows 上提供商面板不再闪关。** 悬停打开齿轮菜单后再点 **提供商…**，tip 改尺寸时不会立刻关掉（[#7](https://github.com/rayelzz/UsageBar-tauri/issues/7)）。悬停齿轮仍是移开关闭；点进面板或右键条会钉住。
 
 ### 0.0.27 — 2026-09-10
 

@@ -13,6 +13,8 @@ dist-ssr
 *.local
 src-tauri/target
 src-tauri/gen/schemas
+.tausik/
+.codex/
 
 # Editor directories and files
 .vscode/*

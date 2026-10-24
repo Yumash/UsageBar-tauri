@@ -71,6 +71,14 @@ pub fn default_locale() -> String {
     "en".into()
 }
 
+pub fn normalize_locale(value: &str) -> String {
+    if value == "zh" || value == "ru" {
+        value.into()
+    } else {
+        default_locale()
+    }
+}
+
 pub fn default_display_value() -> String {
     "used".into()
 }
@@ -178,7 +186,7 @@ impl Prefs {
             self.display_style = "full".into();
         }
         self.display_value = normalize_display_value(&self.display_value);
-        self.locale = if self.locale == "zh" { "zh".into() } else { "en".into() };
+        self.locale = normalize_locale(&self.locale);
         self.visible_providers = normalize_visible(&self.visible_providers);
         if !self.along.is_finite() {
             self.along = UNSET;
@@ -393,6 +401,16 @@ mod tests {
         assert_eq!(normalize_display_value("remaining"), "remaining");
         assert_eq!(normalize_display_value("used"), "used");
         assert_eq!(normalize_display_value("nope"), "used");
+    }
+
+    #[test]
+    fn locale_accepts_russian_and_falls_back_to_english() {
+        assert_eq!(normalize_locale("ru"), "ru");
+        assert_eq!(normalize_locale("zh"), "zh");
+        assert_eq!(normalize_locale("unsupported"), "en");
+
+        let parsed = parse_text(r#"{"locale":"ru"}"#);
+        assert_eq!(parsed.locale, "ru");
     }
 
     #[test]

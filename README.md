@@ -113,7 +113,7 @@ Hover the settings gear on the bar, or right-click the bar:
 - Snap left / right / top / bottom
 - Display style: Ring usage / Transparent icons
 - Display value: Used quota / Remaining quota
-- Language: English (default) / 中文 — menus and usage cards follow it; vendor and model names stay in English
+- Language: English (default) / 中文 / Русский — menus and usage cards follow it; vendor and model names stay unchanged
 - **Providers…**: choose 1–10 providers and their order in the same gear popover. The bar shortens or lengthens to match; no empty **—** slots.
 - Current version, **Check for update**, latest version (click to install), and auto-check (off by default). A new version pops a separate notes window beside the menu; open at login; quit
 - **App icon**: Dock / menu bar / neither (default). Menu-bar **UB** only quits

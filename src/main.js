@@ -127,10 +127,40 @@ const METRIC_LABELS = {
     Completions: "Completions",
     Usage: "用量",
   },
+  ru: {
+    "Included usage": "Включено в план",
+    "API usage": "Использование API",
+    "Weekly limit": "Недельный лимит",
+    "Weekly allowance": "Недельная квота",
+    "5-hour window": "5-часовое окно",
+    "Monthly limit": "Месячный лимит",
+    "On-demand": "Сверх лимита",
+    "Current window": "Текущее окно",
+    "MCP tools": "Инструменты MCP",
+    "Weekly Opus": "Opus за неделю",
+    "Weekly Sonnet": "Sonnet за неделю",
+    "Premium requests": "Премиум-запросы",
+    "Team pooled": "Командный пул",
+    Chat: "Чат",
+    Completions: "Дополнения",
+    Usage: "Использование",
+  },
 };
 
 function isZh() {
   return prefs.locale === "zh";
+}
+
+function isRu() {
+  return prefs.locale === "ru";
+}
+
+function normalizeLocale(locale) {
+  return locale === "zh" || locale === "ru" ? locale : "en";
+}
+
+function currentLocale() {
+  return normalizeLocale(prefs.locale);
 }
 
 function t() {
@@ -200,8 +230,77 @@ function t() {
         creditRemainingExpired: "已到期",
         whatsNew: "更新说明",
         installVersion: (v) => `安装 ${v}`,
+        close: "关闭",
       }
-    : {
+    : isRu()
+      ? {
+          refreshNow: "Обновить сейчас",
+          autoRefresh: "Автообновление",
+          lock: "Закрепить панель",
+          unlock: "Перемещать панель",
+          clickThrough: "Пропускать клики",
+          snapLeft: "Прикрепить слева",
+          snapRight: "Прикрепить справа",
+          snapTop: "Прикрепить сверху",
+          snapBottom: "Прикрепить снизу",
+          displayValue: "Показывать",
+          usedQuota: "Использовано",
+          remainingQuota: "Осталось",
+          displayValueHint: "Кольца, проценты и карточка показывают выбранное значение. Цвет зависит от остатка: красный — до 20%, жёлтый — 20–40%, зелёный — больше 40%.",
+          language: "Язык",
+          appIcon: "Значок приложения",
+          appIconDock: "Панель задач",
+          appIconMenubar: "Область уведомлений",
+          appIconNeither: "Не показывать",
+          openAtLogin: "Автозапуск",
+          quit: "Выйти из UsageBar",
+          tools: "Провайдеры…",
+          toolsTitle: "Провайдеры",
+          toolsBack: "Назад",
+          barOpacity: "Непрозрачность панели",
+          barOpacityHint: "Меньше — прозрачнее",
+          barBlur: "Размытие",
+          barBlurHint: "Больше — сильнее размытие",
+          lookReset: "Сбросить",
+          toolsHint: "Выберите 1–10 провайдеров и задайте порядок. Без входа показывается «Нет данных».",
+          toolsMax: "Уже выбрано 10 провайдеров. Сначала отключите один.",
+          toolsMin: "Оставьте хотя бы одного провайдера.",
+          moveUp: "Выше",
+          moveDown: "Ниже",
+          selectedCount: (n) => `Выбрано: ${n} из 10`,
+          resetTitle: "Лимит сброшен",
+          updateLine: (v) => `Доступно обновление ${v}`,
+          autoCheckUpdate: "Автопроверка обновлений",
+          updatesTitle: "Обновления",
+          currentVersionLine: (v) => `Текущая версия: ${v}`,
+          checkUpdate: "Проверить обновления",
+          checkingUpdate: "Проверка…",
+          updateUpToDate: "Обновлений нет",
+          updateCheckFailed: "Ошибка проверки",
+          installingUpdate: "Установка обновления…",
+          updateInstallFailed: "Ошибка установки; открыта загрузка",
+          settings: "Настройки",
+          snapGroup: "Сторона экрана",
+          edgeShort: ["Слева", "Справа", "Сверху", "Снизу"],
+          off: "Выкл.",
+          noData: "Нет данных",
+          querying: "Проверка…",
+          resetCards: "Карточки сброса",
+          resetCardCount: (n) => `${n} шт.`,
+          resetCardAvailable: "Доступна",
+          resetCardFull: "Полный сброс",
+          resetCardFiveHour: "Сброс 5-часового лимита",
+          resetCardWeekly: "Сброс недельного лимита",
+          creditSoonTitle: "Карточка сброса скоро истечёт",
+          creditRemainingDays: (n) => `через ${n} дн.`,
+          creditRemainingHours: (n) => `через ${n} ч.`,
+          creditRemainingMinutes: (n) => `через ${n} мин.`,
+          creditRemainingExpired: "Истекла",
+          whatsNew: "Что нового",
+          installVersion: (v) => `Установить ${v}`,
+          close: "Закрыть",
+        }
+      : {
         refreshNow: "Refresh now",
         autoRefresh: "Auto refresh",
         lock: "Lock position",
@@ -266,6 +365,7 @@ function t() {
         creditRemainingExpired: "Expired",
         whatsNew: "What’s new",
         installVersion: (v) => `Install ${v}`,
+        close: "Close",
       };
 }
 
@@ -276,6 +376,12 @@ function intervalLabel(sec) {
     if (sec === 300) return "5 分钟";
     if (sec === 600) return "10 分钟";
     return `${sec} 秒`;
+  }
+  if (isRu()) {
+    if (sec === 120) return "2 мин.";
+    if (sec === 300) return "5 мин.";
+    if (sec === 600) return "10 мин.";
+    return `${sec} с`;
   }
   if (sec === 120) return "2min";
   if (sec === 300) return "5min";
@@ -343,17 +449,27 @@ function isQuerying(snap) {
 
 function usageTitle(id) {
   const name = vendorName(id);
-  return isZh() ? `${name} 用量` : `${name} Usage`;
+  if (isZh()) return `${name} 用量`;
+  if (isRu()) return `${name}: использование`;
+  return `${name} Usage`;
 }
 
 function localizeMetricLabel(label) {
   if (!label) return "";
-  const dict = isZh() ? METRIC_LABELS.zh : METRIC_LABELS.en;
+  const dict = METRIC_LABELS[currentLocale()] || METRIC_LABELS.en;
   if (dict[label]) return dict[label];
   const hour = label.match(/^(\d+)-hour window$/);
-  if (hour) return isZh() ? `${hour[1]} 小时窗口` : label;
+  if (hour) {
+    if (isZh()) return `${hour[1]} 小时窗口`;
+    if (isRu()) return `${hour[1]}-часовое окно`;
+    return label;
+  }
   const day = label.match(/^(\d+)-day window$/);
-  if (day) return isZh() ? `${day[1]} 天窗口` : label;
+  if (day) {
+    if (isZh()) return `${day[1]} 天窗口`;
+    if (isRu()) return `${day[1]}-дневное окно`;
+    return label;
+  }
   const idx = label.lastIndexOf(" · ");
   if (idx >= 0) {
     const head = label.slice(0, idx);
@@ -369,14 +485,19 @@ function localizeError(snap) {
   const err = snap.error || "";
   if (!err || err === "no_quota") return t().noData;
   if (err === "login_not_found") {
-    return isZh() ? `未找到 ${name} 登录信息` : `${name} login not found`;
+    if (isZh()) return `未找到 ${name} 登录信息`;
+    if (isRu()) return `Вход в ${name} не найден`;
+    return `${name} login not found`;
   }
   if (err === "auth") {
-    return isZh() ? "登录已过期" : "Session expired";
+    if (isZh()) return "登录已过期";
+    if (isRu()) return "Сеанс истёк";
+    return "Session expired";
   }
   if (err.startsWith("api_error")) {
     const code = err.split(":")[1];
     if (isZh()) return code ? `${name} 接口异常 (${code})` : `${name} 接口异常`;
+    if (isRu()) return code ? `Ошибка запроса ${name} (${code})` : `Ошибка запроса ${name}`;
     return code ? `${name} request failed (${code})` : `${name} request failed`;
   }
   return err;
@@ -400,12 +521,18 @@ function quotaText(used) {
   const shown = shownPct(used);
   if (shown == null) return "";
   const n = Math.round(shown);
-  if (isRemaining()) return isZh() ? `剩余 ${n}%` : `${n}% Left`;
-  return isZh() ? `已用 ${n}%` : `${n}% Used`;
+  if (isRemaining()) {
+    if (isZh()) return `剩余 ${n}%`;
+    if (isRu()) return `Осталось ${n}%`;
+    return `${n}% Left`;
+  }
+  if (isZh()) return `已用 ${n}%`;
+  if (isRu()) return `Использовано ${n}%`;
+  return `${n}% Used`;
 }
 
 function applyLocale() {
-  document.documentElement.lang = isZh() ? "zh-CN" : "en";
+  document.documentElement.lang = isZh() ? "zh-CN" : isRu() ? "ru" : "en";
   syncUpdateBadge();
 }
 
@@ -413,7 +540,7 @@ function normalizeLoadedPrefs(p) {
   const next = { ...p };
   if (next.displayStyle !== "icons") next.displayStyle = "full";
   next.displayValue = next.displayValue === "remaining" ? "remaining" : "used";
-  next.locale = next.locale === "zh" ? "zh" : "en";
+  next.locale = normalizeLocale(next.locale);
   next.visibleProviders = normalizeVisible(next.visibleProviders);
   next.autoCheckUpdate = !!next.autoCheckUpdate;
   next.skippedUpdateVersion = next.skippedUpdateVersion || "";
@@ -435,6 +562,11 @@ function appIconNeitherHint() {
     if (osName === "windows") return "没有图标。可从开始菜单再打开，或点条上的齿轮改回来。";
     if (osName === "linux") return "没有图标。可从应用程序列表再打开，或点条上的齿轮改回来。";
     return "没有图标。可从「应用程序」再打开，或点条上的齿轮改回来。";
+  }
+  if (isRu()) {
+    if (osName === "windows") return "Значок скрыт. Откройте UsageBar из меню «Пуск» или нажмите шестерёнку на панели.";
+    if (osName === "linux") return "Значок скрыт. Откройте UsageBar из списка приложений или нажмите шестерёнку на панели.";
+    return "Значок скрыт. Откройте UsageBar из папки «Программы» или нажмите шестерёнку на панели.";
   }
   if (osName === "windows") {
     return "No icon anywhere. Open UsageBar from the Start menu, or click the gear on the bar.";
@@ -526,6 +658,14 @@ function formatReset(ms) {
       : `${Number(p.month)}月${Number(p.day)}日`;
     return `重置 ${date} ${hh}:${mm}`;
   }
+  if (isRu()) {
+    const date = new Intl.DateTimeFormat("ru-RU", {
+      day: "numeric",
+      month: "short",
+      ...(showYear ? { year: "numeric" } : {}),
+    }).format(d);
+    return `Сброс ${date}, ${hh}:${mm}`;
+  }
   const mon = localParts(ms, { month: "short" }).month;
   const date = showYear ? `${mon} ${p.day}, ${p.year}` : `${mon} ${p.day}`;
   return `Resets ${date}, ${hh}:${mm}`;
@@ -593,6 +733,14 @@ function formatCreditExpiry(ms) {
       ? `${p.year}年${Number(p.month)}月${Number(p.day)}日`
       : `${Number(p.month)}月${Number(p.day)}日`;
     return `到期 ${date} ${hh}:${mm}`;
+  }
+  if (isRu()) {
+    const date = new Intl.DateTimeFormat("ru-RU", {
+      day: "numeric",
+      month: "short",
+      ...(showYear ? { year: "numeric" } : {}),
+    }).format(d);
+    return `Истекает ${date}, ${hh}:${mm}`;
   }
   const mon = localParts(ms, { month: "short" }).month;
   const date = showYear ? `${mon} ${p.day}, ${p.year}` : `${mon} ${p.day}`;
@@ -1264,7 +1412,7 @@ function tipContentPayload(extra = {}) {
     snap,
     resets: (snap.metrics || []).map((m) => formatReset(m.resetsAt)),
     arrow: tipArrow(),
-    locale: prefs.locale === "zh" ? "zh" : "en",
+    locale: currentLocale(),
     displayValue: prefs.displayValue === "remaining" ? "remaining" : "used",
     resetNotice: snap.resetNotice || null,
     creditNotice: snap.creditNotice || null,
@@ -1302,7 +1450,7 @@ function updateTipPayload() {
     latest: info.latest,
     notes: updateNotesText(info),
     arrow: tipArrow(),
-    locale: prefs.locale === "zh" ? "zh" : "en",
+    locale: currentLocale(),
   };
 }
 
@@ -2373,7 +2521,7 @@ function restartTimer() {
 }
 
 async function setLocale(next) {
-  const locale = next === "zh" ? "zh" : "en";
+  const locale = normalizeLocale(next);
   if (prefs.locale === locale) return;
   prefs.locale = locale;
   applyLocale();
@@ -2455,6 +2603,10 @@ const MENU_W = 216;
 const PROVIDERS_W = 260;
 let menuCardFrame = null;
 
+function menuWidth(locale = currentLocale()) {
+  return locale === "ru" ? 280 : MENU_W;
+}
+
 function menuSpec(st) {
   const ui = t();
   const chips = (ids, labels, on) => ({ k: "chips", ids, labels, on });
@@ -2512,7 +2664,11 @@ function menuSpec(st) {
       [st.displayValue !== "remaining", st.displayValue === "remaining"]
     ),
     { k: "label", label: ui.language },
-    chips(["locale:en", "locale:zh"], ["English", "中文"], [st.locale !== "zh", st.locale === "zh"]),
+    chips(
+      ["locale:en", "locale:zh", "locale:ru"],
+      ["English", "中文", "Русский"],
+      [st.locale === "en", st.locale === "zh", st.locale === "ru"]
+    ),
     { k: "label", label: ui.appIcon },
     chips(
       ["icon:dock", "icon:menubar", "icon:neither"],
@@ -2549,7 +2705,7 @@ function menuSpec(st) {
 }
 
 function menuPanelHtml(st) {
-  const closeLabel = st.locale === "zh" ? "关闭" : "Close";
+  const closeLabel = t().close;
   return `<button type="button" class="tip-close" data-mid="close" aria-label="${closeLabel}">×</button>${menuSpec(st)
     .map((r) => {
       if (r.k === "sep") return `<div class="m-sep"></div>`;
@@ -2652,7 +2808,7 @@ function providersPanelHtml(st) {
 
 function menuStateNow() {
   return {
-    locale: isZh() ? "zh" : "en",
+    locale: currentLocale(),
     refreshInterval: prefs.refreshInterval,
     locked: !!prefs.locked,
     clickThrough: !!prefs.clickThrough,
@@ -2798,7 +2954,7 @@ async function showPanelMenu(reposition = true, hold) {
   menuPage = "menu";
   const st = menuStateNow();
   const { wasOpen, tipWin, arrow, pointerAt } = await placeMenuOverlay(
-    MENU_W,
+    menuWidth(st.locale),
     menuPanelHeight(st),
     reposition
   );
@@ -2837,7 +2993,7 @@ async function showProvidersPanel(reposition = true) {
   pinOpenMenu();
   menuPage = "providers";
   const st = {
-    locale: isZh() ? "zh" : "en",
+    locale: currentLocale(),
     visibleProviders: normalizeVisible(prefs.visibleProviders),
   };
   const { wasOpen, tipWin, arrow, pointerAt } = await placeMenuOverlay(
@@ -3459,7 +3615,7 @@ function paintTip(payload) {
     setWindowBlur("tip", 0);
     return;
   }
-  prefs.locale = payload.locale === "zh" ? "zh" : "en";
+  prefs.locale = normalizeLocale(payload.locale);
   if (payload.displayValue) {
     prefs.displayValue = payload.displayValue === "remaining" ? "remaining" : "used";
   }
@@ -3484,7 +3640,7 @@ function paintTip(payload) {
     if (payload.cardX != null && payload.cardY != null) {
       tip.style.left = `${payload.cardX}px`;
       tip.style.top = `${payload.cardY}px`;
-      tip.style.width = `${payload.cardW || MENU_W}px`;
+      tip.style.width = `${payload.cardW || menuWidth(payload.locale)}px`;
       tip.style.height = `${payload.cardH || 0}px`;
     }
     if (ptr) {
@@ -3520,7 +3676,7 @@ function paintUpdateCard(payload) {
     setWindowBlur("update", 0);
     return;
   }
-  prefs.locale = payload.locale === "zh" ? "zh" : "en";
+  prefs.locale = normalizeLocale(payload.locale);
   applyLocale();
   const ptr = document.getElementById("tip-pointer");
   if (ptr) ptr.hidden = true;
@@ -3531,7 +3687,7 @@ function paintUpdateCard(payload) {
   card.classList.add("update-notes");
   const notes = notesHtml(payload.notes);
   card.innerHTML = `
-    <button type="button" class="tip-close" data-close-update="1" aria-label="Close">×</button>
+    <button type="button" class="tip-close" data-close-update="1" aria-label="${t().close}">×</button>
     <div class="card-head">
       <div class="title">${t().whatsNew}</div>
     </div>

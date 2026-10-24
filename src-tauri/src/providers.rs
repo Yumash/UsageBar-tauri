@@ -565,10 +565,13 @@ fn credit_expires_at(item: &Value) -> Option<i64> {
 }
 
 fn parse_reset_credits(json: &Value) -> Vec<ResetCredit> {
+    parse_reset_credits_at(json, now_ms())
+}
+
+fn parse_reset_credits_at(json: &Value, now: i64) -> Vec<ResetCredit> {
     let root = reset_credits_root(json);
     let limits_only = root.get("limits").is_some() && !has_credit_list_key(root);
     let list = credit_list(root).cloned().unwrap_or_default();
-    let now = now_ms();
     let mut out = Vec::new();
     for item in list {
         let status = item
@@ -812,13 +815,16 @@ fn append_zcode_resets(
 }
 
 fn parse_zcode_reset_status(json: &Value) -> Vec<ResetCredit> {
+    parse_zcode_reset_status_at(json, now_ms())
+}
+
+fn parse_zcode_reset_status_at(json: &Value, now: i64) -> Vec<ResetCredit> {
     if let Some(code) = json.get("code").and_then(|v| v.as_i64()) {
         if code != 0 && code != 200 {
             return vec![];
         }
     }
     let root = reset_credits_root(json);
-    let now = now_ms();
     let mut out = Vec::new();
     append_zcode_resets(
         &mut out,
@@ -2877,6 +2883,8 @@ fn format_reset_offset(ms: Option<i64>, zh: bool, offset: FixedOffset) -> Option
 mod tests {
     use super::*;
 
+    const RESET_FIXTURE_NOW_MS: i64 = 1_780_000_000_000;
+
     #[test]
     fn jwt_sub_reads_auth_id() {
         let payload = "eyJzdWIiOiJhdXRoMHx1c2VyXzEifQ";
@@ -3242,7 +3250,8 @@ mod tests {
 
     #[test]
     fn codex_reset_credits_keep_available_and_drop_used() {
-        let credits = parse_reset_credits(&json!({
+        let credits = parse_reset_credits_at(
+            &json!({
             "available_count": 2,
             "credits": [
                 {
@@ -3263,7 +3272,9 @@ mod tests {
                     "expiresAt": "2026-10-04T05:34:00Z"
                 }
             ]
-        }));
+            }),
+            RESET_FIXTURE_NOW_MS,
+        );
         assert_eq!(credits.len(), 2);
         assert_eq!(credits[0].title, "Full reset (Weekly + 5 hr)");
         assert_eq!(credits[1].title, "Full reset");
@@ -3285,7 +3296,8 @@ mod tests {
 
     #[test]
     fn reset_credits_keep_usable_and_drop_used_or_expired() {
-        let credits = parse_reset_credits(&json!({
+        let credits = parse_reset_credits_at(
+            &json!({
             "data": {
                 "reset_cards": [
                     {
@@ -3314,7 +3326,9 @@ mod tests {
                     }
                 ]
             }
-        }));
+            }),
+            RESET_FIXTURE_NOW_MS,
+        );
         assert_eq!(credits.len(), 2);
         assert_eq!(credits[0].title, "5-hour reset");
         assert_eq!(credits[1].title, "Full reset");
@@ -3540,7 +3554,8 @@ mod tests {
 
     #[test]
     fn parse_zcode_reset_status_keeps_usable_and_drops_expired() {
-        let credits = parse_zcode_reset_status(&json!({
+        let credits = parse_zcode_reset_status_at(
+            &json!({
             "code": 0,
             "data": {
                 "available_five_hour_resets": [
@@ -3551,7 +3566,9 @@ mod tests {
                     { "expire_at": 1_790_870_399_000i64 }
                 ]
             }
-        }));
+            }),
+            RESET_FIXTURE_NOW_MS,
+        );
         assert_eq!(credits.len(), 2);
         assert_eq!(credits[0].title, "5-hour reset");
         assert_eq!(credits[1].title, "Weekly reset");

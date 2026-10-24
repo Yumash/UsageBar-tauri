@@ -4,6 +4,7 @@
       "src/main.js",
       "src/styles.css",
       "src-tauri/src/dock_shape.rs",
+      "src-tauri/src/lib.rs",
       "src-tauri/src/overlay.rs",
       "src-tauri/src/prefs.rs",
       "src-tauri/src/providers.rs",

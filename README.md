@@ -41,7 +41,7 @@ macOS 12+ · Windows · Linux · MIT License · [Download latest](https://github
 - Click-through when the mouse is not on the bar
 - A detached settings gear sits in its own circular cabin past the end of the bar (the dock shape is unchanged). Hover the gear to open settings; move away to close. Right-click the bar pins the same menu. **×** also closes it
 - Automatic update checks are **off** by default. Opening the gear menu still checks once; a new version pops a separate notes window from the GitHub release (**What’s new** / **更新说明**, matching the app language) beside the settings menu. **×** skips that version; hovering a slot hides the card. The gear menu still has the current version and **Check for update**; after a check, click the latest version or **Install** to download, install, and restart. If install fails, the GitHub download page opens
-- **App icon** in the gear menu: Dock, menu bar, or neither (default). Menu-bar **UB** is quit-only. With neither, open settings from the gear, or reopen the app from Applications / the Start menu
+- **App icon** in the gear menu: Dock, menu bar, or neither (default). Menu-bar **UB** can show/hide the overlay, refresh usage, open settings, or quit. With neither, open settings from the gear, or reopen the app from Applications / the Start menu
 - Auto-refresh every 60 seconds (configurable)
 - Official brand icons; red when remaining ≤ 20% (used ≥ 80%), yellow when remaining ≤ 40% (used ≥ 60%), green otherwise
 
@@ -116,7 +116,7 @@ Hover the settings gear on the bar, or right-click the bar:
 - Language: English (default) / 中文 / Русский — menus and usage cards follow it; vendor and model names stay unchanged
 - **Providers…**: choose 1–10 providers and their order in the same gear popover. The bar shortens or lengthens to match; no empty **—** slots.
 - Current version, **Check for update**, latest version (click to install), and auto-check (off by default). A new version pops a separate notes window beside the menu; open at login; quit
-- **App icon**: Dock / menu bar / neither (default). Menu-bar **UB** only quits
+- **App icon**: Dock / menu bar / neither (default). Menu-bar **UB** provides show/hide, refresh, settings, and quit
 
 All settings — edge, position, provider list and order, display style, display value, opacity, blur, app icon, language, refresh, lock, click-through, update prefs — are stored at `~/.usagebar/prefs.json` and survive restarts and app updates.
 
@@ -164,7 +164,7 @@ Export `GLM_API_KEY` (or `ZAI_API_KEY` / `Z_AI_API_KEY`) in your shell, or use `
 No. ZCode is 智谱’s coding agent; GLM is the model / API key. **Providers → ZCode** reads the Coding Plan key ZCode already saved. **GLM** reads your shell / `.zai` / cc-switch key. If those keys belong to the same Coding Plan, the percentages match; if they are different accounts, the rings differ. Reset cards need a signed-in ZCode session (`~/.zcode/v2/credentials.json`); UsageBar decrypts that local `enc:v1:` blob only to list cards, and never redeems them.
 
 **Windows / Linux notes.**  
-Windows needs WebView2 (the installer can bootstrap it). The tray appears only if **App icon** is Menu bar; it is quit-only. Linux needs a working system tray for that option.
+Windows needs WebView2 (the installer can bootstrap it). The tray appears only if **App icon** is Menu bar. Linux needs a working system tray for that option.
 
 ### Privacy
 

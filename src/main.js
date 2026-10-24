@@ -2593,6 +2593,9 @@ async function onNativeMenu(id) {
   } else if (id === "tools") {
     await showProvidersPanel(true);
     return;
+  } else if (id === "settings") {
+    await showPanelMenu(true, "pin");
+    return;
   } else if (id === "quit") {
     await invoke("quit");
     return;

@@ -10,14 +10,15 @@ mod usage_state;
 use overlay::Overlay;
 use prefs::Prefs;
 use serde::Serialize;
-use std::sync::atomic::{AtomicU64, Ordering};
-use tauri::menu::{Menu, MenuItem};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_opener::OpenerExt;
 
 static TRAY_GEN: AtomicU64 = AtomicU64::new(0);
+static BAR_HIDDEN_BY_TRAY: AtomicBool = AtomicBool::new(false);
 
 #[tauri::command]
 async fn fetch_usage(app: AppHandle) -> Vec<providers::ProviderSnapshot> {
@@ -258,8 +259,73 @@ fn tray_rect(app: AppHandle) -> Option<TrayRect> {
 }
 
 fn build_tray_menu(app: &AppHandle, prefs: &Prefs) -> tauri::Result<Menu<tauri::Wry>> {
-    let quit = MenuItem::with_id(app, "quit", i18n::quit(prefs.locale.as_str()), true, Some("q"))?;
-    Menu::with_items(app, &[&quit])
+    let toggle = MenuItem::with_id(
+        app,
+        "toggle-bar",
+        if BAR_HIDDEN_BY_TRAY.load(Ordering::Acquire) {
+            i18n::show(prefs.locale.as_str())
+        } else {
+            i18n::hide(prefs.locale.as_str())
+        },
+        true,
+        None::<&str>,
+    )?;
+    let refresh = MenuItem::with_id(
+        app,
+        "refresh",
+        i18n::refresh(prefs.locale.as_str()),
+        true,
+        None::<&str>,
+    )?;
+    let settings = MenuItem::with_id(
+        app,
+        "settings",
+        i18n::settings(prefs.locale.as_str()),
+        true,
+        None::<&str>,
+    )?;
+    let separator = PredefinedMenuItem::separator(app)?;
+    let quit = MenuItem::with_id(
+        app,
+        "quit",
+        i18n::quit(prefs.locale.as_str()),
+        true,
+        Some("q"),
+    )?;
+    Menu::with_items(app, &[&toggle, &refresh, &settings, &separator, &quit])
+}
+
+fn set_bar_visible(app: &AppHandle, visible: bool) {
+    BAR_HIDDEN_BY_TRAY.store(!visible, Ordering::Release);
+    if visible {
+        reveal_bar(app);
+    } else {
+        overlay::MENU_OPEN.store(false, Ordering::Relaxed);
+        overlay::set_menu_card(None);
+        for label in ["bar", "tip", "update"] {
+            if let Some(window) = app.get_webview_window(label) {
+                let _ = window.hide();
+            }
+        }
+    }
+    let prefs = get_prefs(app.clone());
+    apply_tray(app, &prefs);
+}
+
+fn handle_tray_menu_event(app: &AppHandle, id: &str) {
+    match id {
+        "toggle-bar" => {
+            let show = BAR_HIDDEN_BY_TRAY.load(Ordering::Acquire);
+            set_bar_visible(app, show);
+        }
+        "settings" => {
+            set_bar_visible(app, true);
+            let _ = app.emit("usagebar-menu", "settings");
+        }
+        _ => {
+            let _ = app.emit("usagebar-menu", id);
+        }
+    }
 }
 
 fn apply_app_icon(app: &AppHandle, prefs: &Prefs) {
@@ -281,6 +347,9 @@ fn apply_app_icon(app: &AppHandle, prefs: &Prefs) {
 }
 
 fn reveal_bar(app: &AppHandle) {
+    if BAR_HIDDEN_BY_TRAY.load(Ordering::Acquire) {
+        return;
+    }
     let Some(bar) = app.get_webview_window("bar") else {
         return;
     };
@@ -473,7 +542,7 @@ pub fn run() {
                     .menu(&menu)
                     .show_menu_on_left_click(true)
                     .on_menu_event(|app, event| {
-                        let _ = app.emit("usagebar-menu", event.id().as_ref());
+                        handle_tray_menu_event(app, event.id().as_ref());
                     });
                 #[cfg(target_os = "macos")]
                 {
@@ -486,6 +555,8 @@ pub fn run() {
                     }
                 }
                 let tray = tray.build(app)?;
+                #[cfg(not(target_os = "macos"))]
+                let _ = &tray;
                 #[cfg(target_os = "macos")]
                 {
                     style_macos_status_item(&tray);
@@ -495,7 +566,7 @@ pub fn run() {
                     let _ = tray.set_menu(Some(menu));
                 }
                 tray.on_menu_event(|app, event| {
-                    let _ = app.emit("usagebar-menu", event.id().as_ref());
+                    handle_tray_menu_event(app, event.id().as_ref());
                 });
             }
             apply_tray(app.handle(), &prefs);

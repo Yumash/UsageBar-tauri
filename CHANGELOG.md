@@ -6,6 +6,13 @@ Notable changes to UsageBar. Dates are UTC+8.
 
 ## English
 
+### 0.0.29 — 2026-10-25
+
+- **Two compact quota values.** Each provider can show the session / 5-hour and weekly values together as two plain numbers. Per-provider metric selection supports Auto or up to two explicit windows; provider visibility and order still use the complete existing catalog.
+- **Tray quota summary.** Hovering the tray icon shows cached limits, and the tray menu carries the same summary where native hover events are unavailable.
+- **Current ZCode credentials.** z.ai / ZCode now reads the encrypted Coding Plan account key used by current ZCode releases while retaining the legacy config and existing GLM key sources.
+- **Edge-aware cards.** Detail and settings cards move to the inward side after the bar is snapped to another edge, including the bottom edge.
+
 ### 0.0.28 — 2026-09-11
 
 - **Windows: Providers panel stays open.** Opening **Providers…** from a hover-opened gear menu no longer flashes shut when the tip window resizes ([#7](https://github.com/rayelzz/UsageBar-tauri/issues/7)). Hover the gear still closes on move-away; clicking in the panel or right-clicking the bar pins it.
@@ -148,6 +155,13 @@ Notable changes to UsageBar. Dates are UTC+8.
 - First public build: Codex, Cursor, Grok, GLM edge bar.
 
 ## 中文
+
+### 0.0.29 — 2026-10-25
+
+- **双额度紧凑显示。** 每个提供商可同时显示会话 / 5 小时额度与周额度，只保留上下排列的两个数字。每个提供商可使用自动选择，或指定最多两个额度窗口；原有完整提供商目录、显示开关和排序均保留。
+- **托盘额度摘要。** 鼠标悬停托盘图标时显示缓存额度；系统不提供原生悬停事件时，托盘菜单和提示文本仍显示同一摘要。
+- **新版 ZCode 凭据。** z.ai / ZCode 现可读取新版 ZCode 保存的加密 Coding Plan 账户密钥，同时保留旧版配置和已有 GLM 密钥来源。
+- **贴边方向感知。** 将栏吸附到其他边缘（包括底边）后，详情卡和设置卡会移动到屏幕内侧。
 
 ### 0.0.28 — 2026-09-11
 

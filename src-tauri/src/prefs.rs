@@ -443,6 +443,24 @@ mod tests {
     }
 
     #[test]
+    fn provider_catalog_keeps_every_supported_provider() {
+        assert_eq!(
+            CATALOG,
+            [
+                "codex",
+                "cursor",
+                "grok",
+                "glm",
+                "zcode",
+                "claude",
+                "copilot",
+                "gemini",
+                "antigravity",
+            ]
+        );
+    }
+
+    #[test]
     fn bar_look_defaults_and_clamps() {
         let prefs = Prefs::default();
         assert_eq!(prefs.bar_opacity, BAR_OPACITY_DEFAULT);

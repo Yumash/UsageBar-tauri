@@ -789,9 +789,34 @@ fn zcode_session_auth_from(store: &Value, secret: &str) -> Option<(String, Strin
 }
 
 fn zcode_session_auth() -> Option<(String, String, &'static str)> {
-    let path = home().join(".zcode/v2/credentials.json");
-    let store = serde_json::from_str::<Value>(&fs::read_to_string(path).ok()?).ok()?;
+    let store = zcode_credentials_store()?;
     zcode_session_auth_from(&store, &zcode_credential_secret())
+}
+
+fn zcode_credentials_store() -> Option<Value> {
+    let path = home().join(".zcode/v2/credentials.json");
+    serde_json::from_str::<Value>(&fs::read_to_string(path).ok()?).ok()
+}
+
+fn zcode_coding_plan_credential_from(store: &Value, secret: &str) -> Option<(String, &'static str)> {
+    let active = zcode_load_credential(store, "oauth:active_provider", secret)
+        .unwrap_or_else(|| "bigmodel".into());
+    let entries = store.as_object()?;
+    let is_plan_key = |key: &str| {
+        key.starts_with("account-provider:coding-plan:account:") && key.ends_with(":api-key")
+    };
+    let preferred_marker = format!(":{active}-");
+    let selected = entries
+        .iter()
+        .find(|(key, _)| is_plan_key(key) && key.contains(&preferred_marker))
+        .or_else(|| entries.iter().find(|(key, _)| is_plan_key(key)))?;
+    let key = zcode_load_credential(store, selected.0, secret)?;
+    let host = if selected.0.contains(":zai-") || active == "zai" {
+        "https://api.z.ai"
+    } else {
+        "https://open.bigmodel.cn"
+    };
+    Some((key, host))
 }
 
 fn append_zcode_resets(
@@ -1925,21 +1950,29 @@ fn fetch_zcode_session_quota(id: &str, title: &str) -> Option<ProviderSnapshot> 
 }
 
 fn fetch_zhipu_quota(id: &str, title: &str, key: &str, hosts: &[&str]) -> ProviderSnapshot {
-    let headers = [
-        ("Authorization", format!("Bearer {key}")),
-        ("Accept", "application/json".into()),
-    ];
+    let raw = key.trim().to_string();
+    let bearer = if raw.to_ascii_lowercase().starts_with("bearer ") {
+        raw.clone()
+    } else {
+        format!("Bearer {raw}")
+    };
     for host in hosts {
-        let url = format!("{host}/api/monitor/usage/quota/limit");
-        if let Ok((200, json)) = http_get_json(&url, &headers) {
-            let mut snap = parse_glm(id, title, json);
-            if snap.reset_credits.is_empty() {
-                snap.reset_credits = pull_zcode_session_reset_credits();
+        for authorization in [&raw, &bearer] {
+            let headers = [
+                ("Authorization", authorization.clone()),
+                ("Accept", "application/json".into()),
+            ];
+            let url = format!("{host}/api/monitor/usage/quota/limit");
+            if let Ok((200, json)) = http_get_json(&url, &headers) {
+                let mut snap = parse_glm(id, title, json);
+                if snap.reset_credits.is_empty() {
+                    snap.reset_credits = pull_zcode_session_reset_credits();
+                }
+                if snap.reset_credits.is_empty() {
+                    snap.reset_credits = pull_zhipu_reset_credits(host, &headers);
+                }
+                return snap;
             }
-            if snap.reset_credits.is_empty() {
-                snap.reset_credits = pull_zhipu_reset_credits(host, &headers);
-            }
-            return snap;
         }
     }
     empty(id, title, "login_not_found")
@@ -2057,6 +2090,11 @@ fn glm_key() -> Option<String> {
 }
 
 fn zcode_coding_plan() -> Option<(String, &'static str)> {
+    if let Some(store) = zcode_credentials_store() {
+        if let Some(pair) = zcode_coding_plan_credential_from(&store, &zcode_credential_secret()) {
+            return Some(pair);
+        }
+    }
     let path = home().join(".zcode/v2/config.json");
     let obj = serde_json::from_str::<Value>(&fs::read_to_string(path).ok()?).ok()?;
     zcode_coding_plan_from(&obj)
@@ -3119,6 +3157,30 @@ mod tests {
         let auth = zcode_session_auth_from(&store, "unused").expect("fallback auth");
         assert_eq!(auth.1, "fallback-token");
         assert_eq!(auth.2, "https://api.z.ai");
+    }
+
+    #[test]
+    fn zcode_reads_current_account_coding_plan_key() {
+        let store = json!({
+            "oauth:active_provider": "zai",
+            "account-provider:coding-plan:account:bigmodel-individual-coding-plan:account:old:api-key": "old.plan-key",
+            "account-provider:coding-plan:account:zai-individual-coding-plan:account:current:api-key": "current.plan-key"
+        });
+        assert_eq!(
+            zcode_coding_plan_credential_from(&store, "unused"),
+            Some(("current.plan-key".into(), "https://api.z.ai"))
+        );
+    }
+
+    #[test]
+    fn zcode_current_account_key_falls_back_without_active_provider() {
+        let store = json!({
+            "account-provider:coding-plan:account:bigmodel-individual-coding-plan:account:user:api-key": "fallback.plan-key"
+        });
+        assert_eq!(
+            zcode_coding_plan_credential_from(&store, "unused"),
+            Some(("fallback.plan-key".into(), "https://open.bigmodel.cn"))
+        );
     }
 
     #[test]

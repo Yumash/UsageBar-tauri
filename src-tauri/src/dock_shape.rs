@@ -2,12 +2,12 @@
 //! Keep these constants and formulas in lockstep with the frontend.
 #![allow(dead_code)]
 
-pub const BAR_THICK: f64 = 62.0;
+pub const BAR_THICK: f64 = 54.0;
 pub const BAR_PAD: f64 = 44.0;
 pub const BAR_SLOT: f64 = 48.0;
-pub const BAR_H_THICK: f64 = 46.0;
+pub const BAR_H_THICK: f64 = 40.0;
 pub const BAR_H_BASE: f64 = 24.0;
-pub const BAR_H_SLOT: f64 = 82.0;
+pub const BAR_H_SLOT: f64 = 59.0;
 pub const GEAR_R: f64 = 14.0;
 pub const GEAR_CARVE: f64 = 18.5;
 pub const GEAR_END: f64 = 19.0;
@@ -724,10 +724,10 @@ mod tests {
     fn dock_path_geometry_matches_frontend_constants() {
         let js = include_str!("../../src/main.js");
         for expected in [
-            "const BAR_THICK = 62;",
+            "const BAR_THICK = 54;",
             "const BAR_SLOT = 48;",
-            "const BAR_H_THICK = 46;",
-            "const BAR_H_SLOT = 82;",
+            "const BAR_H_THICK = 40;",
+            "const BAR_H_SLOT = 59;",
         ] {
             assert!(js.contains(expected), "frontend geometry drift: {expected}");
         }

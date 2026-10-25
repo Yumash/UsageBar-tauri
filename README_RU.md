@@ -94,7 +94,7 @@ UsageBar ничего не оценивает по локальным логам
 ```bash
 npm install
 npm run tauri dev      # режим разработки
-npm run tauri build    # локальный установщик
+npm run tauri build -- --no-sign  # неподписанный локальный установщик
 ```
 
 Готовые файлы находятся в:

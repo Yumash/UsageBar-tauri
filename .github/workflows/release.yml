@@ -126,4 +126,6 @@ jobs:
             Сообщение о повреждении приложения означает карантин Gatekeeper, а не повреждённый файл.
           releaseDraft: false
           prerelease: false
-          args: ${{ matrix.args }}
+          # Upstream uses its updater signing secret. Forks without that secret
+          # still publish installable, unsigned packages on their Releases page.
+          args: ${{ matrix.args }} ${{ secrets.TAURI_SIGNING_PRIVATE_KEY == '' && '--no-sign' || '' }}

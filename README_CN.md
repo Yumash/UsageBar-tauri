@@ -94,7 +94,7 @@ Cursor 会话文件位置：
 ```bash
 npm install
 npm run tauri dev      # 开发
-npm run tauri build    # 本机安装包
+npm run tauri build -- --no-sign  # 未签名的本机安装包
 ```
 
 产物目录：

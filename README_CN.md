@@ -58,7 +58,7 @@ macOS 12+ · Windows · Linux · MIT License · [下载最新版](https://github
 | **ZCode** | `~/.zcode/v2/config.json` 的 Coding Plan Key + `credentials.json` 登录态 | 与 GLM 同一套官方配额接口；重置卡走 `zcode.z.ai` `/api/v1/coding-plan/reset/status` | `limits[]` 里有的窗口都显示（5 小时、周、月、MCP 等）。ZCode 已登录时显示 5 小时 / 周重置卡 |
 | **Claude** | macOS 钥匙串 `Claude Code-credentials`，或 `~/.claude/.credentials.json` | Anthropic `api/oauth/usage` | 5 小时 + 周额度 + 模型周额度（及月超额） |
 | **Copilot** | `~/.config/github-copilot/apps.json` / `hosts.json`、已登录的 GitHub CLI（包括系统钥匙串），或 `GITHUB_TOKEN` | GitHub `copilot_internal/user` | 有上限的月额度（通常是 Premium）+ 重置日期 |
-| **Gemini** | Gemini CLI 的 `~/.gemini/oauth_creds.json`；Windows 上也可使用已登录的 Google Gemini 桌面会话 | Cloud Code Assist `retrieveUserQuota`，或 Gemini 应用用量查询 | 优先显示 CLI / Code Assist 各模型额度；否则显示 consumer Google AI 套餐的 5 小时与周额度。桌面 cookie 只在内存中解密，且只发送给 Google |
+| **Gemini** | Gemini CLI 的 `~/.gemini/oauth_creds.json`；Windows 上也可使用已登录的 Google Gemini 桌面会话 | Cloud Code Assist `retrieveUserQuota`，或 Gemini 应用用量查询 | 优先显示 CLI / Code Assist 各模型额度；否则显示 consumer Google AI 套餐的 5 小时与周额度。桌面 cookie 只在内存中解密，且只发送给 Google；由 DPAPI 保护的本机会话缓存可在 Gemini Desktop 锁定 cookie 数据库时继续提供用量 |
 | **Antigravity** | `~/.gemini/antigravity-cli/antigravity-oauth-token` | Cloud Code Assist `fetchAvailableModels` | 各模型剩余比例 + 重置 |
 
 Cursor 会话文件位置：

@@ -2802,6 +2802,42 @@ fn windows_dpapi_decrypt(data: &[u8]) -> Option<Vec<u8>> {
 }
 
 #[cfg(target_os = "windows")]
+fn windows_dpapi_encrypt(data: &[u8]) -> Option<Vec<u8>> {
+    use std::ptr::null;
+    use windows_sys::Win32::Foundation::LocalFree;
+    use windows_sys::Win32::Security::Cryptography::{
+        CryptProtectData, CRYPTPROTECT_UI_FORBIDDEN, CRYPT_INTEGER_BLOB,
+    };
+
+    let mut input = CRYPT_INTEGER_BLOB {
+        cbData: data.len().try_into().ok()?,
+        pbData: data.as_ptr() as *mut u8,
+    };
+    let mut output = CRYPT_INTEGER_BLOB::default();
+    let ok = unsafe {
+        CryptProtectData(
+            &mut input,
+            null(),
+            null(),
+            null(),
+            null(),
+            CRYPTPROTECT_UI_FORBIDDEN,
+            &mut output,
+        )
+    };
+    if ok == 0 || output.pbData.is_null() {
+        return None;
+    }
+    let result = unsafe {
+        std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec()
+    };
+    unsafe {
+        LocalFree(output.pbData as _);
+    }
+    Some(result)
+}
+
+#[cfg(target_os = "windows")]
 fn gemini_desktop_cookie_key(root: &Path) -> Option<Vec<u8>> {
     let state = serde_json::from_str::<Value>(&fs::read_to_string(root.join("Local State")).ok()?).ok()?;
     let encoded = state.pointer("/os_crypt/encrypted_key")?.as_str()?;
@@ -2828,23 +2864,47 @@ fn decrypt_chromium_cookie(host: &str, encrypted: &[u8], key: &[u8]) -> Option<S
 }
 
 #[cfg(target_os = "windows")]
-fn gemini_desktop_cookie_header() -> Option<String> {
+fn read_gemini_desktop_cookie_header() -> Option<String> {
     let root = dirs::config_dir()?.join("Gemini");
     let key = gemini_desktop_cookie_key(&root)?;
-    let conn = Connection::open_with_flags(
-        root.join("Network/Cookies"),
+    let source = root.join("Network/Cookies");
+    let snapshot_root = std::env::temp_dir().join(format!(
+        "usagebar-gemini-cookies-{}-{}",
+        std::process::id(),
+        now_ms()
+    ));
+    fs::create_dir(&snapshot_root).ok()?;
+    let snapshot = snapshot_root.join("Cookies");
+    let copied = fs::copy(&source, &snapshot).is_ok();
+    for suffix in ["-wal", "-shm"] {
+        let sidecar = PathBuf::from(format!("{}{suffix}", source.display()));
+        if sidecar.exists() {
+            let target = PathBuf::from(format!("{}{suffix}", snapshot.display()));
+            let _ = fs::copy(sidecar, target);
+        }
+    }
+    if !copied {
+        let _ = fs::remove_dir_all(&snapshot_root);
+        return None;
+    }
+    let conn = match Connection::open_with_flags(
+        &snapshot,
         rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .ok()?;
-    let mut stmt = conn
-        .prepare(
+    ) {
+        Ok(conn) => conn,
+        Err(_) => {
+            let _ = fs::remove_dir_all(&snapshot_root);
+            return None;
+        }
+    };
+    let header = (|| {
+        let mut stmt = conn.prepare(
             "SELECT host_key, name, encrypted_value FROM cookies \
              WHERE host_key = '.google.com' OR host_key = 'gemini.google.com' \
              OR host_key = '.gemini.google.com' ORDER BY host_key, name",
         )
         .ok()?;
-    let rows = stmt
-        .query_map([], |row| {
+        let rows = stmt.query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -2852,19 +2912,42 @@ fn gemini_desktop_cookie_header() -> Option<String> {
             ))
         })
         .ok()?;
-    let mut cookies = Vec::new();
-    let mut has_session = false;
-    for row in rows {
-        let (host, name, encrypted) = row.ok()?;
-        let Some(value) = decrypt_chromium_cookie(&host, &encrypted, &key) else {
-            continue;
-        };
-        if matches!(name.as_str(), "SID" | "__Secure-1PSID" | "__Secure-3PSID") {
-            has_session = true;
+        let mut cookies = Vec::new();
+        let mut has_session = false;
+        for row in rows {
+            let (host, name, encrypted) = row.ok()?;
+            let Some(value) = decrypt_chromium_cookie(&host, &encrypted, &key) else {
+                continue;
+            };
+            if matches!(name.as_str(), "SID" | "__Secure-1PSID" | "__Secure-3PSID") {
+                has_session = true;
+            }
+            cookies.push(format!("{name}={value}"));
         }
-        cookies.push(format!("{name}={value}"));
+        (has_session && !cookies.is_empty()).then(|| cookies.join("; "))
+    })();
+    drop(conn);
+    let _ = fs::remove_dir_all(snapshot_root);
+    header
+}
+
+#[cfg(target_os = "windows")]
+fn gemini_desktop_cookie_header() -> Option<String> {
+    let cache = home().join(".usagebar/gemini-session.dpapi");
+    if let Some(header) = read_gemini_desktop_cookie_header() {
+        if let Some(protected) = windows_dpapi_encrypt(header.as_bytes()) {
+            if let Some(parent) = cache.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            let _ = fs::write(&cache, protected);
+        }
+        return Some(header);
     }
-    (has_session && !cookies.is_empty()).then(|| cookies.join("; "))
+    fs::read(cache)
+        .ok()
+        .and_then(|protected| windows_dpapi_decrypt(&protected))
+        .and_then(|plain| String::from_utf8(plain).ok())
+        .filter(|header| !header.is_empty())
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -2925,29 +3008,45 @@ fn fetch_gemini_web() -> Option<ProviderSnapshot> {
         "workspaceRequest": { "recommendationsForSurfaceRequests": [] }
     })
     .to_string();
-    let mut url = reqwest::Url::parse(
-        "https://gemini.google.com/_/BardChatUi/graphql/schemas/GEMINI_WEB_GRAPHQL/executeQuery",
-    )
-    .ok()?;
-    url.query_pairs_mut()
-        .append_pair("query_signature", SIGNATURE)
-        .append_pair("variables", &variables);
-    let headers = [
-        ("Accept", "application/json".into()),
-        ("Referer", "https://gemini.google.com/usage".into()),
-        ("Cookie", cookie),
-    ];
-    let (status, body) = http_get_text_timeout(url.as_str(), &headers, 12).ok()?;
-    if status != 200 || body.trim_start().starts_with('<') {
-        return None;
+    for account in [None, Some(0), Some(1), Some(2), Some(3), Some(4)] {
+        let base = account.map_or_else(
+            || "https://gemini.google.com".to_string(),
+            |index| format!("https://gemini.google.com/u/{index}"),
+        );
+        let mut url = reqwest::Url::parse(&format!(
+            "{base}/_/BardChatUi/graphql/schemas/GEMINI_WEB_GRAPHQL/executeQuery"
+        ))
+        .ok()?;
+        url.query_pairs_mut()
+            .append_pair("query_signature", SIGNATURE)
+            .append_pair("variables", &variables);
+        let mut headers = vec![
+            ("Accept", "application/json".into()),
+            ("Referer", format!("{base}/usage")),
+            ("Cookie", cookie.clone()),
+        ];
+        if let Some(index) = account {
+            headers.push(("X-Goog-AuthUser", index.to_string()));
+        }
+        let Ok((status, body)) = http_get_text_timeout(url.as_str(), &headers, 12) else {
+            continue;
+        };
+        if status != 200 || body.trim_start().starts_with('<') {
+            continue;
+        }
+        let text = body
+            .trim_start()
+            .strip_prefix(")]}'")
+            .unwrap_or(body.trim_start())
+            .trim_start();
+        let Ok(json) = serde_json::from_str::<Value>(text) else {
+            continue;
+        };
+        if let Some(snapshot) = parse_gemini_web_usage(json) {
+            return Some(snapshot);
+        }
     }
-    let text = body
-        .trim_start()
-        .strip_prefix(")]}'")
-        .unwrap_or(body.trim_start())
-        .trim_start();
-    let json: Value = serde_json::from_str(text).ok()?;
-    parse_gemini_web_usage(json)
+    None
 }
 
 fn fetch_gemini() -> ProviderSnapshot {
@@ -3920,6 +4019,17 @@ mod tests {
         assert_eq!(
             decrypt_chromium_cookie(host, &packed, &key).as_deref(),
             Some("session-value")
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_dpapi_session_cache_round_trips() {
+        let protected = windows_dpapi_encrypt(b"gemini-session").expect("protect session");
+        assert_ne!(protected, b"gemini-session");
+        assert_eq!(
+            windows_dpapi_decrypt(&protected).as_deref(),
+            Some(b"gemini-session".as_slice())
         );
     }
 

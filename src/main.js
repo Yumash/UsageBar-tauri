@@ -1,3 +1,5 @@
+import { clampRectToWorkArea, edgePopupRect, popupArrow } from "./geometry.js";
+
 const ICONS = {
   codex: {
     viewBox: "0 0 256 260",
@@ -1406,7 +1408,7 @@ function tipHeight(snap) {
 }
 
 function tipArrow() {
-  return prefs.edge === "left" ? "left" : prefs.edge === "top" ? "up" : prefs.edge === "bottom" ? "down" : "right";
+  return popupArrow(prefs.edge);
 }
 
 function tipContentPayload(extra = {}) {
@@ -1471,12 +1473,7 @@ function rectsOverlap(a, b, gap = 8) {
 }
 
 function clampRectToScreen(rect, screen) {
-  if (!rect || !screen) return rect;
-  return {
-    ...rect,
-    x: clamp(rect.x, screen.wx + 6, Math.max(screen.wx + 6, screen.wx + screen.ww - rect.w - 6)),
-    y: clamp(rect.y, screen.wy + 6, Math.max(screen.wy + 6, screen.wy + screen.wh - rect.h - 6)),
-  };
+  return clampRectToWorkArea(rect, screen);
 }
 
 function overlapArea(a, b) {
@@ -1570,36 +1567,27 @@ function tipTargetFrame(frame, opts = {}) {
   const inner = Math.max(along - start - end, 1);
   const slot = inner / count;
   const mid = start + (idx + 0.5) * slot;
-  let x = 0;
-  let y = 0;
-  if (prefs.edge === "right" || prefs.edge === "floating") {
-    x = frame.x - tw - 6;
-    y = frame.y + mid - th / 2;
-  } else if (prefs.edge === "left") {
-    x = frame.x + frame.w + 6;
-    y = frame.y + mid - th / 2;
-  } else if (prefs.edge === "top") {
-    x = frame.x + mid - tw / 2;
-    y = frame.y + frame.h + 6;
-  } else {
-    x = frame.x + mid - tw / 2;
-    y = frame.y - th - 6;
-  }
-  return { x, y, w: tw, h: th };
+  const target = edgePopupRect({
+    bar: frame,
+    edge: prefs.edge,
+    card: { w: tw, h: th },
+    along: mid,
+  });
+  return opts.screen ? clampRectToScreen(target, opts.screen) : target;
 }
 
-function tipTravelBounds(frame) {
+function tipTravelBounds(frame, screen) {
   let bounds = null;
   for (const s of snaps) {
-    const f = tipTargetFrame(frame, { id: s.id, travel: true });
+    const f = tipTargetFrame(frame, { id: s.id, travel: true, screen });
     if (f) bounds = unionRects(bounds, f);
   }
   return bounds;
 }
 
-function tipHostRect(barFrame, target) {
+function tipHostRect(barFrame, target, screen) {
   if (frostActive()) return { ...target };
-  return tipTravelBounds(barFrame) || target;
+  return tipTravelBounds(barFrame, screen) || target;
 }
 
 function tipSlideFrom(target, stage, extra = {}) {
@@ -1754,6 +1742,16 @@ async function placeTipWindow(tipWin, rect) {
 
 let lastTipPaintKey = "";
 
+function invalidatePopupGeometry() {
+  cancelTipSlide();
+  updateLayoutGen += 1;
+  tipSlideFrame = null;
+  tipStageFrame = null;
+  menuCardFrame = null;
+  menuScreenBox = null;
+  lastTipPaintKey = "";
+}
+
 function tipPaintKey(snap) {
   if (!snap) return "";
   return [
@@ -1792,6 +1790,8 @@ async function showUsageTip(barFrame, opts = {}) {
     return;
   }
   const gen = ++tipSlideGen;
+  const list = await monitors();
+  const screen = await monitorAt({ x: barFrame.x + barFrame.w / 2, y: barFrame.y + barFrame.h / 2 }, list);
   if (frostActive()) {
     setWindowBlur("tip", 0);
     lastTipPaintKey = tipPaintKey(payload.snap);
@@ -1800,10 +1800,8 @@ async function showUsageTip(barFrame, opts = {}) {
     const measured = await ready;
     if (gen !== tipSlideGen) return;
     const snap = payload.snap;
-    const list = await monitors();
-    const screen = await monitorAt({ x: barFrame.x + barFrame.w / 2, y: barFrame.y + barFrame.h / 2 }, list);
     const size = clampTipSize(measured?.w || TIP_W, measured?.h || tipHeight(snap), screen);
-    const target = clampRectToScreen(tipTargetFrame(barFrame, size), screen);
+    const target = tipTargetFrame(barFrame, { ...size, screen });
     if (!target) return;
     await placeTipWindow(tipWin, target);
     if (gen !== tipSlideGen) return;
@@ -1813,12 +1811,12 @@ async function showUsageTip(barFrame, opts = {}) {
     await api().event.emit("usagebar-frost-sync");
     return;
   }
-  const target = tipTargetFrame(barFrame);
+  const target = tipTargetFrame(barFrame, { screen });
   if (!target) {
     await tipWin.hide();
     return;
   }
-  const stage = tipHostRect(barFrame, target);
+  const stage = tipHostRect(barFrame, target, screen);
   const first = !tipStageFrame;
   const barMoved = !first && !rectsClose(tipStageFrame, stage);
   const switching = !first && !barMoved && !!opts.from;
@@ -1937,12 +1935,13 @@ async function placeWindows() {
     /* older runtime */
   }
   const frame = await invoke("place_bar");
-  if (!frame) return;
+  if (!frame) return null;
   prefs.lastX = frame.x;
   prefs.lastY = frame.y;
   prefs.along = isVertical(prefs.edge) ? frame.y : frame.x;
   if (!menuOpen) await layoutTip(frame, { w: frame.w, h: frame.h });
   if (updateToastOpen) await layoutUpdateCard();
+  return frame;
 }
 
 async function currentBarFrame() {
@@ -2545,6 +2544,8 @@ function setDisplayValue(value) {
 }
 
 async function snapTo(edge) {
+  const edgeChanged = prefs.edge !== edge;
+  if (edgeChanged) invalidatePopupGeometry();
   prefs.edge = edge;
   const pos = await getCurrentWindow().outerPosition();
   const size = barSize(edge);
@@ -2872,8 +2873,7 @@ async function placeMenuOverlay(winW, needH, reposition) {
     await setHovered(null);
     await setTipClickable(true);
   }
-  const arrow =
-    prefs.edge === "left" ? "left" : prefs.edge === "top" ? "up" : prefs.edge === "bottom" ? "down" : "right";
+  const arrow = popupArrow(prefs.edge);
   const tipWin = await getWindow("tip");
   let pointerAt = menuCardFrame?.pointerAt ?? null;
   const sizeChanged =
@@ -2891,15 +2891,15 @@ async function placeMenuOverlay(winW, needH, reposition) {
     const gx = frame.x + g.x;
     const gy = frame.y + g.y;
     const winH = Math.min(needH, Math.max(160, screen.wh - 12));
-    let x;
-    let y;
-    if (prefs.edge === "left") x = frame.x + frame.w - 2;
-    else if (prefs.edge === "top" || prefs.edge === "bottom")
-      x = clamp(gx - winW + 26, screen.wx + 6, screen.wx + screen.ww - winW - 6);
-    else x = frame.x - winW + 2;
-    if (prefs.edge === "top") y = frame.y + frame.h - 2;
-    else if (prefs.edge === "bottom") y = frame.y - winH + 2;
-    else y = clamp(gy - winH + 26, screen.wy + 6, screen.wy + screen.wh - winH - 6);
+    const raw = edgePopupRect({
+      bar: frame,
+      edge: prefs.edge,
+      card: { w: winW, h: winH },
+      along: isVertical(prefs.edge) ? g.y : g.x,
+      gap: -2,
+    });
+    const placed = clampRectToScreen(raw, screen);
+    const { x, y } = placed;
     pointerAt = prefs.edge === "top" || prefs.edge === "bottom" ? gx - x : gy - y;
     menuScreenBox = { x, y, w: winW, h: winH };
     menuCardFrame = {
@@ -3255,6 +3255,7 @@ async function startBar() {
   await api().event.listen("usagebar-prefs", (e) => {
     if (!e.payload) return;
     const prev = (prefs.visibleProviders || []).join(",");
+    const prevEdge = prefs.edge;
     const prevAuto = !!prefs.autoCheckUpdate;
     const prevValue = prefs.displayValue;
     const prevBlurOn = clampBarBlur(prefs.barBlur) > 0;
@@ -3262,7 +3263,13 @@ async function startBar() {
     applyLocale();
     applyBarLook();
     if (prevAuto !== prefs.autoCheckUpdate) applyAutoUpdatePref();
-    if (prev !== prefs.visibleProviders.join(",")) {
+    if (prevEdge !== prefs.edge) {
+      invalidatePopupGeometry();
+      renderBar();
+      placeWindows()
+        .then(() => (menuOpen ? showPanelMenu(true) : null))
+        .catch((err) => console.error(err));
+    } else if (prev !== prefs.visibleProviders.join(",")) {
       snaps = slotsFrom(snaps.filter((s) => s.id), true);
       renderBar();
       placeWindows().catch((err) => console.error(err));

@@ -140,13 +140,25 @@ html.update .tip {
 .cells.vertical .cell {
   flex-direction: row;
   gap: 4px;
-  width: 52px;
+  width: 44px;
   min-height: 40px;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .cells.horizontal .cell {
-  flex: 0 0 76px;
-  width: 76px;
+  flex: 0 0 53px;
+  width: 53px;
   flex-direction: row;
   gap: 4px;
   justify-content: flex-start;
@@ -193,8 +205,8 @@ html.update .tip {
 
 .compact-metrics {
   display: flex;
-  flex: 0 0 42px;
-  width: 42px;
+  flex: 0 0 18px;
+  width: 18px;
   min-width: 0;
   flex-direction: column;
   justify-content: center;
@@ -202,37 +214,21 @@ html.update .tip {
 }
 
 .compact-metric {
-  display: grid;
-  grid-template-columns: 14px 1fr;
+  display: flex;
   align-items: baseline;
-  column-gap: 2px;
+  justify-content: flex-end;
   min-width: 0;
   line-height: 1;
 }
 
-.compact-metric span {
-  overflow: hidden;
-  color: var(--glyph-muted, rgba(255, 255, 255, 0.5));
-  font-size: 7px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  text-overflow: clip;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
 .compact-metric b {
   color: var(--glyph, #fff);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 620;
   font-variant-numeric: tabular-nums;
   font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", sans-serif;
   letter-spacing: -0.04em;
   text-align: right;
-}
-
-.compact-metrics.single .compact-metric {
-  grid-template-columns: 14px 1fr;
 }
 
 .unknown .compact-metric b { color: var(--glyph-muted); }

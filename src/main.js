@@ -62,12 +62,12 @@ const ICONS = {
 };
 ICONS.zcode = ICONS.glm;
 
-const BAR_THICK = 62;
+const BAR_THICK = 54;
 const BAR_PAD = 44;
 const BAR_SLOT = 48;
-const BAR_H_THICK = 46;
+const BAR_H_THICK = 40;
 const BAR_H_BASE = 24;
-const BAR_H_SLOT = 82;
+const BAR_H_SLOT = 59;
 const GEAR_R = 14;
 const GEAR_CARVE = GEAR_R + 4.5;
 const GEAR_END = 19;
@@ -1366,6 +1366,11 @@ function compactValue(used) {
   return shown == null ? "—" : `${Math.round(shown)}%`;
 }
 
+function compactBarValue(used) {
+  const shown = shownPct(used);
+  return shown == null ? "—" : String(Math.round(shown));
+}
+
 function safeTrayStatus(snap) {
   if (snap?.loading) return t().querying;
   if (!snap?.error || snap.error === "no_quota") return t().noData;
@@ -1431,10 +1436,10 @@ function renderBar() {
         ? shownMetrics
             .map((metric) => {
               const label = metric.id === "__headline" ? metric.label : compactMetricLabel(metric, currentLocale());
-              return `<div class="compact-metric" data-compact-id="${escapeHtml(metric.id)}"><span>${escapeHtml(label)}</span><b>${compactValue(metric.percent)}</b></div>`;
+              return `<div class="compact-metric" data-compact-id="${escapeHtml(metric.id)}" title="${escapeHtml(localizeMetricLabel(metric.label))}: ${compactValue(metric.percent)}"><b>${compactBarValue(metric.percent)}</b><span class="sr-only">${escapeHtml(label)}</span></div>`;
             })
             .join("")
-        : `<div class="compact-metric"><span></span><b>—</b></div>`;
+        : `<div class="compact-metric"><b>—</b></div>`;
       const ariaMetrics = shownMetrics.length
         ? shownMetrics.map((metric) => `${localizeMetricLabel(metric.label)} ${compactValue(metric.percent)}`).join(", ")
         : t().noData;

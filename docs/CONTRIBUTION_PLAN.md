@@ -60,84 +60,53 @@ The fork starts at upstream commit `2605fd5f782c5044743e1d2fad681935844bebb3`
   key, as expected; without that secret it packages both installers and then
   reports the missing `TAURI_SIGNING_PRIVATE_KEY`.
 
-## Proposed pull-request sequence
+## Current contribution scope
 
-Each phase is intentionally independent so upstream can review and merge it
-without accepting the rest of the roadmap.
+The upstream-focused branch `feature/configurable-quota-surfaces` now contains
+the completed work planned for the first contribution:
 
-### 1. Stabilize the test baseline
+- time-independent reset-card tests and pull-request CI for Windows x64, Linux
+  x64, macOS Apple Silicon, and macOS Intel;
+- complete Russian UI localization and a Russian README, while retaining the
+  English and Chinese interfaces and documentation;
+- full tray controls plus a cached quota summary in the native tooltip/menu;
+- one or two compact values per visible provider, with Auto or explicit metric
+  selection, without narrowing the existing provider catalog;
+- edge-aware detail/settings cards for left, right, top, and bottom placement;
+- current ZCode encrypted Coding Plan credential discovery and improved z.ai
+  session fallback;
+- GitHub CLI/keychain fallback for Copilot and Windows Gemini Desktop consumer
+  quotas, including 5-hour and weekly windows;
+- documentation for local and CI builds, credential sources, privacy, and
+  troubleshooting in English, Chinese, and Russian.
 
-- Replace fixed reset-card expiry fixtures with times relative to the test run,
-  or inject a clock into the parser helpers.
-- Preserve the production rule that expired cards are filtered out.
-- Add a normal CI workflow for tests on pull requests; keep release packaging
-  separate.
-- Avoid mixing broad rustfmt/clippy cleanup into the behavioral fix.
+Existing preference files are migrated without resetting provider visibility,
+order, geometry, or other settings. Hiding a provider remains presentation
+only; every upstream provider stays available in the picker.
 
-Acceptance: tests remain valid after calendar time advances and pass on all
-three operating-system runners.
+## Deferred follow-ups
 
-### 2. Add Russian localization
+These ideas are intentionally not part of the current pull request:
 
-- Add Russian alongside English and Chinese in the frontend and native tray
-  strings.
-- Centralize locale normalization so an unsupported locale still falls back to
-  English and an existing `en`/`zh` preference is unchanged.
-- Cover settings, provider cards, reset notices, updater UI, errors, and tray
-  actions. Vendor and model names remain untranslated.
-- Check narrow cards and the settings popover at common Windows scale factors.
+- first-run onboarding or a new-user provider preset;
+- in-app secret entry backed by Windows Credential Manager, macOS Keychain,
+  and Linux Secret Service;
+- rebranding, provider removal, or a separate release channel.
 
-Acceptance: `ru` can be selected and persisted, every current provider remains
-selectable, and English/Chinese behavior is unchanged.
+They require separate product and security review and should not expand this
+contribution.
 
-### 3. Make the tray useful without replacing the overlay
+## Verification status
 
-- Retain the current `App icon: Dock / menu bar / neither` setting.
-- Expand the tray menu with show/hide overlay, refresh now, open settings, and
-  quit.
-- Where platform APIs allow it reliably, show a concise freshness/status
-  summary without attempting to put all provider metrics in the menu.
-- Preserve the existing overlay, gear menu, edge snapping, and click-through
-  workflow.
-
-Acceptance: all tray actions work on Windows, macOS, and supported Linux tray
-implementations; choosing `neither` behaves exactly as before.
-
-### 4. Improve first-run setup without narrowing the product
-
-- Offer a first-run provider selection using the full upstream catalog.
-- A convenience selection for Codex, Claude, Cursor, and GLM/z.ai may be
-  offered, but it is not a new global default and never hides other providers.
-- Let a new user choose used versus remaining display during setup.
-- Never invoke onboarding for an existing preferences file.
-
-Acceptance: all upstream providers are visible in setup and settings, existing
-installs retain their provider order, and skipping setup preserves upstream
-defaults.
-
-### 5. Improve optional GLM/z.ai configuration
-
-- Keep every existing source (`GLM_API_KEY`, `ZAI_API_KEY`, `Z_AI_API_KEY`,
-  `~/.zai/config.json`, and cc-switch) and its precedence behavior.
-- Investigate an optional in-app key entry backed by Windows Credential
-  Manager, macOS Keychain, and Linux Secret Service.
-- Do not copy an existing environment/file credential into storage or return a
-  stored secret to the webview.
-- Ship this only if the Linux fallback and uninstall/clear behavior are
-  explicit and testable; otherwise improve setup diagnostics instead.
-
-Acceptance: existing GLM and ZCode users see no behavior change, and optional
-storage neither logs nor exposes the key.
-
-### 6. Release verification
-
-- Smoke-test the Windows NSIS installer, start-at-login, updater, overlay,
-  settings, and tray against a clean user profile.
-- Run the existing native GitHub Actions matrix for macOS DMG/app and Linux
-  AppImage/DEB readiness.
-- Verify no provider disappeared by exercising the complete catalog with parser
-  fixtures, while running live/manual checks for the owner's four configured
-  providers when credentials are available.
+- Windows live checks cover Codex, Cursor, GLM/z.ai, ZCode, Copilot, and Gemini
+  Desktop. Gemini was verified both with its cookie database available and
+  while the running desktop client held it locked.
+- The current local suite passes 102 Rust tests and 13 JavaScript tests.
+- A local Windows 0.0.29 release build produces the application binary, NSIS,
+  and MSI packages. The final signing step is expected to require the upstream
+  `TAURI_SIGNING_PRIVATE_KEY`; no release is published from the fork.
+- The pull-request workflow is responsible for unsigned Linux and macOS build
+  verification on their native runners.
 
 ## Explicit non-goals
 
@@ -150,7 +119,6 @@ storage neither logs nor exposes the key.
 
 ## Contribution discipline
 
-Work should be split into one branch and one upstream-focused pull request per
-phase. Every PR must state the preserved behaviors, include tests for the
-changed surface, and be rebased on upstream `main` before submission. Fork-only
-governance files stay out of upstream pull requests.
+The upstream pull request must state the preserved behaviors, include the test
+and build evidence, and remain based on upstream `main`. Fork-only governance
+files such as this plan stay out of the upstream pull request.

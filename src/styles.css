@@ -138,16 +138,17 @@ html.update .tip {
 }
 
 .cells.vertical .cell {
-  flex-direction: column;
-  gap: 3px;
-  width: 36px;
+  flex-direction: row;
+  gap: 4px;
+  width: 52px;
+  min-height: 40px;
 }
 
 .cells.horizontal .cell {
-  flex: 0 0 53px;
-  width: 53px;
+  flex: 0 0 76px;
+  width: 76px;
   flex-direction: row;
-  gap: 3px;
+  gap: 4px;
   justify-content: flex-start;
 }
 
@@ -190,18 +191,51 @@ html.update .tip {
   stroke-width: 2.5;
 }
 
-.pct {
-  font-size: 11px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", sans-serif;
-  color: var(--glyph, #fff);
+.compact-metrics {
+  display: flex;
+  flex: 0 0 42px;
+  width: 42px;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.compact-metric {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  align-items: baseline;
+  column-gap: 2px;
+  min-width: 0;
   line-height: 1;
 }
 
-.cells.horizontal .pct { width: 24px; text-align: left; }
+.compact-metric span {
+  overflow: hidden;
+  color: var(--glyph-muted, rgba(255, 255, 255, 0.5));
+  font-size: 7px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  text-overflow: clip;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
 
-.unknown .pct { color: var(--glyph-muted); }
+.compact-metric b {
+  color: var(--glyph, #fff);
+  font-size: 10px;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", sans-serif;
+  letter-spacing: -0.04em;
+  text-align: right;
+}
+
+.compact-metrics.single .compact-metric {
+  grid-template-columns: 14px 1fr;
+}
+
+.unknown .compact-metric b { color: var(--glyph-muted); }
 .unknown .glyph { opacity: 0.7; }
 
 .cell.reset .icon {

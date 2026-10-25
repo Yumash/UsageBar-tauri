@@ -8,12 +8,12 @@ use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager};
 const SNAP: f64 = 32.0;
 const SNAP_KEEP: f64 = 48.0;
 const SNAP_SWITCH: f64 = 16.0;
-const BAR_THICK: f64 = 46.0;
+const BAR_THICK: f64 = 62.0;
 const BAR_PAD: f64 = 44.0;
 const BAR_SLOT: f64 = 48.0;
-const BAR_H_THICK: f64 = 40.0;
+const BAR_H_THICK: f64 = 46.0;
 const BAR_H_BASE: f64 = 24.0;
-const BAR_H_SLOT: f64 = 59.0;
+const BAR_H_SLOT: f64 = 82.0;
 /// 圆环样式末尾追加的设置区长度：0.0.9 条身原样结束，其后留空放悬空齿轮舱。
 const GEAR_ALONG: f64 = 22.0;
 /// 浮动模式胶囊下方的预留（胶囊无贴边弧，舱体整体更靠下）。

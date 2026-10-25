@@ -1,4 +1,5 @@
 import { clampRectToWorkArea, edgePopupRect, popupArrow } from "./geometry.js";
+import { chooseCompactMetrics, compactMetricLabel } from "./metrics.js";
 
 const ICONS = {
   codex: {
@@ -61,12 +62,12 @@ const ICONS = {
 };
 ICONS.zcode = ICONS.glm;
 
-const BAR_THICK = 46;
+const BAR_THICK = 62;
 const BAR_PAD = 44;
 const BAR_SLOT = 48;
-const BAR_H_THICK = 40;
+const BAR_H_THICK = 46;
 const BAR_H_BASE = 24;
-const BAR_H_SLOT = 59;
+const BAR_H_SLOT = 82;
 const GEAR_R = 14;
 const GEAR_CARVE = GEAR_R + 4.5;
 const GEAR_END = 19;
@@ -1357,6 +1358,11 @@ function paintDock(edge) {
   svg.querySelectorAll("path, circle.pod").forEach((el) => paintFill(el, fill));
 }
 
+function compactValue(used) {
+  const shown = shownPct(used);
+  return shown == null ? "—" : `${Math.round(shown)}%`;
+}
+
 function renderBar() {
   const barEl = document.getElementById("bar");
   const cells = document.getElementById("cells");
@@ -1370,27 +1376,40 @@ function renderBar() {
   placeGearBtn(edge);
   cells.innerHTML = snaps
     .map((s) => {
-      const unknown = s.headlinePercent == null;
-      const shown = shownPct(s.headlinePercent);
-      const text = unknown || shown == null ? "—" : `${Math.round(shown)}%`;
+      const metrics = chooseCompactMetrics(s, prefs.visibleMetrics?.[s.id] || []);
+      const shownMetrics = metrics.length
+        ? metrics
+        : s.headlinePercent != null
+          ? [{ id: "__headline", label: isZh() ? "总" : isRu() ? "все" : "all", percent: s.headlinePercent }]
+          : [];
+      const ringUsed = s.headlinePercent ?? shownMetrics[0]?.percent ?? null;
+      const shown = shownPct(ringUsed);
+      const unknown = ringUsed == null;
       const spec = ICONS[s.id];
       const empty = !s.id || !spec;
       const c = 13;
       const r = 10.25;
       const circ = 2 * Math.PI * r;
-      const color = empty || unknown ? "transparent" : usageColor(s.headlinePercent);
+      const color = empty || unknown ? "transparent" : usageColor(ringUsed);
       const dash = empty || unknown || shown == null ? 0 : (Math.min(Math.max(shown, 0), 100) / 100) * circ;
       if (empty) {
         return `<div class="cell empty-slot unknown">
-          <div class="ring">
-            <svg viewBox="0 0 26 26">
-              ${ringTrack(c, r)}
-            </svg>
-          </div>
-          <div class="pct">—</div>
+          <div class="ring"><svg viewBox="0 0 26 26">${ringTrack(c, r)}</svg></div>
+          <div class="compact-metrics single"><div class="compact-metric"><span></span><b>—</b></div></div>
         </div>`;
       }
       const rule = spec.evenOdd ? 'fill-rule="evenodd"' : "";
+      const rows = shownMetrics.length
+        ? shownMetrics
+            .map((metric) => {
+              const label = metric.id === "__headline" ? metric.label : compactMetricLabel(metric, currentLocale());
+              return `<div class="compact-metric" data-compact-id="${escapeHtml(metric.id)}"><span>${escapeHtml(label)}</span><b>${compactValue(metric.percent)}</b></div>`;
+            })
+            .join("")
+        : `<div class="compact-metric"><span></span><b>—</b></div>`;
+      const ariaMetrics = shownMetrics.length
+        ? shownMetrics.map((metric) => `${localizeMetricLabel(metric.label)} ${compactValue(metric.percent)}`).join(", ")
+        : t().noData;
       return `<div class="cell${hovered === s.id ? " hovered" : ""}${unknown ? " unknown" : ""}${s.resetNotice || s.creditNotice ? " reset" : ""}" data-id="${s.id}">
         <div class="ring">
           <svg viewBox="0 0 26 26">
@@ -1402,7 +1421,7 @@ function renderBar() {
             .map((p) => `<path ${rule} d="${p}"/>`)
             .join("")}</svg></div>
         </div>
-        <div class="pct">${text}</div>
+        <div class="compact-metrics${shownMetrics.length < 2 ? " single" : ""}" aria-label="${escapeHtml(`${vendorName(s.id)}: ${ariaMetrics}`)}">${rows}</div>
       </div>`;
     })
     .join("");
@@ -2436,31 +2455,7 @@ async function savePrefs() {
 }
 
 function paintShownPercents() {
-  const root = document.getElementById("cells");
-  if (!root) return;
-  const items = root.querySelectorAll("[data-id]");
-  if (!items.length) {
-    renderBar();
-    return;
-  }
-  items.forEach((el) => {
-    const snap = snaps.find((s) => s.id === el.dataset.id);
-    if (!snap) return;
-    const unknown = snap.headlinePercent == null;
-    const shown = shownPct(snap.headlinePercent);
-    const pctEl = el.querySelector(".pct");
-    if (pctEl) pctEl.textContent = unknown || shown == null ? "—" : `${Math.round(shown)}%`;
-    const ring = el.querySelector("circle:not(.ring-track-outer):not(.ring-track-inner)");
-    if (ring && !unknown && shown != null) {
-      const r = Number(ring.getAttribute("r"));
-      if (r > 0) {
-        const circ = 2 * Math.PI * r;
-        const dash = (Math.min(Math.max(shown, 0), 100) / 100) * circ;
-        ring.setAttribute("stroke-dasharray", `${dash} ${circ}`);
-      }
-    }
-  });
-  paintInkChrome();
+  renderBar();
 }
 
 function applyIncomingSnap(snap) {
@@ -3323,6 +3318,7 @@ async function startBar() {
   await api().event.listen("usagebar-prefs", (e) => {
     if (!e.payload) return;
     const prev = (prefs.visibleProviders || []).join(",");
+    const prevMetrics = JSON.stringify(normalizeVisibleMetrics(prefs.visibleMetrics));
     const prevEdge = prefs.edge;
     const prevAuto = !!prefs.autoCheckUpdate;
     const prevValue = prefs.displayValue;
@@ -3342,6 +3338,8 @@ async function startBar() {
       renderBar();
       placeWindows().catch((err) => console.error(err));
       refresh().catch((err) => console.error(err));
+    } else if (prevMetrics !== JSON.stringify(prefs.visibleMetrics)) {
+      renderBar();
     } else if (prevValue !== prefs.displayValue) {
       paintShownPercents();
       if (hovered) renderTip().catch((err) => console.error(err));

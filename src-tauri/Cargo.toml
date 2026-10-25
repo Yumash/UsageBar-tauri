@@ -1,6 +1,6 @@
 [package]
 name = "usagebar"
-version = "0.0.28"
+version = "0.0.29"
 description = "Cross-platform AI usage edge bar"
 authors = ["rayelzz"]
 edition = "2021"

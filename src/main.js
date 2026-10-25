@@ -79,8 +79,8 @@ const VENDORS = {
   codex: "Codex",
   cursor: "Cursor",
   grok: "Grok",
-  glm: "GLM",
-  zcode: "ZCode",
+  glm: "z.ai",
+  zcode: "z.ai Coding Plan",
   claude: "Claude",
   copilot: "Copilot",
   gemini: "Gemini",
@@ -488,6 +488,11 @@ function localizeError(snap) {
     if (isZh()) return `未找到 ${name} 登录信息`;
     if (isRu()) return `Вход в ${name} не найден`;
     return `${name} login not found`;
+  }
+  if (err === "session_no_quota") {
+    if (isZh()) return `已找到 ${name} 会话，但无法读取额度；请在 ZCode 中启用 Coding Plan`;
+    if (isRu()) return `Сессия ${name} найдена, но лимиты недоступны — включите Coding Plan в ZCode`;
+    return `${name} session found, but quota is unavailable; enable Coding Plan in ZCode`;
   }
   if (err === "auth") {
     if (isZh()) return "登录已过期";

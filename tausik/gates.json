@@ -3,6 +3,7 @@
     "exempt_files": [
       "src/main.js",
       "src/styles.css",
+      "src-tauri/Cargo.lock",
       "src-tauri/src/dock_shape.rs",
       "src-tauri/src/lib.rs",
       "src-tauri/src/overlay.rs",

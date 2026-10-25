@@ -769,21 +769,29 @@ fn zcode_load_credential(store: &Value, key: &str, secret: &str) -> Option<Strin
     })
 }
 
-fn zcode_session_auth() -> Option<(String, String)> {
-    let path = home().join(".zcode/v2/credentials.json");
-    let store = serde_json::from_str::<Value>(&fs::read_to_string(path).ok()?).ok()?;
-    let secret = zcode_credential_secret();
-    let jwt = zcode_load_credential(&store, "zcodejwttoken", &secret)?;
-    let active = zcode_load_credential(&store, "oauth:active_provider", &secret)
+fn zcode_session_auth_from(store: &Value, secret: &str) -> Option<(String, String, &'static str)> {
+    let jwt = zcode_load_credential(store, "zcodejwttoken", secret)?;
+    let active = zcode_load_credential(store, "oauth:active_provider", secret)
         .unwrap_or_else(|| "bigmodel".into());
     let coding = if active == "zai" {
-        zcode_load_credential(&store, "oauth:zai:access_token", &secret)
-            .or_else(|| zcode_load_credential(&store, "oauth:bigmodel:access_token", &secret))?
+        zcode_load_credential(store, "oauth:zai:access_token", secret)
+            .or_else(|| zcode_load_credential(store, "oauth:bigmodel:access_token", secret))?
     } else {
-        zcode_load_credential(&store, "oauth:bigmodel:access_token", &secret)
-            .or_else(|| zcode_load_credential(&store, "oauth:zai:access_token", &secret))?
+        zcode_load_credential(store, "oauth:bigmodel:access_token", secret)
+            .or_else(|| zcode_load_credential(store, "oauth:zai:access_token", secret))?
     };
-    Some((jwt, coding))
+    let host = if active == "zai" {
+        "https://api.z.ai"
+    } else {
+        "https://open.bigmodel.cn"
+    };
+    Some((jwt, coding, host))
+}
+
+fn zcode_session_auth() -> Option<(String, String, &'static str)> {
+    let path = home().join(".zcode/v2/credentials.json");
+    let store = serde_json::from_str::<Value>(&fs::read_to_string(path).ok()?).ok()?;
+    zcode_session_auth_from(&store, &zcode_credential_secret())
 }
 
 fn append_zcode_resets(
@@ -846,7 +854,7 @@ fn parse_zcode_reset_status_at(json: &Value, now: i64) -> Vec<ResetCredit> {
 }
 
 fn fetch_zcode_session_reset_credits() -> Vec<ResetCredit> {
-    let Some((jwt, coding)) = zcode_session_auth() else {
+    let Some((jwt, coding, _)) = zcode_session_auth() else {
         return vec![];
     };
     let authorization = if jwt.to_ascii_lowercase().starts_with("bearer ") {
@@ -1859,23 +1867,61 @@ fn refresh_grok(issuer: Option<&str>, refresh: Option<&str>, client: Option<&str
 // MARK: GLM
 
 fn fetch_glm() -> ProviderSnapshot {
-    let Some(key) = glm_key() else {
-        return empty("glm", "GLM Usage", "login_not_found");
-    };
-    fetch_zhipu_quota("glm", "GLM Usage", &key, &["https://api.z.ai", "https://open.bigmodel.cn"])
+    if let Some(key) = glm_key() {
+        return fetch_zhipu_quota(
+            "glm",
+            "z.ai Usage",
+            &key,
+            &["https://api.z.ai", "https://open.bigmodel.cn"],
+        );
+    }
+    fetch_zcode_session_quota("glm", "z.ai Usage")
+        .unwrap_or_else(|| empty("glm", "z.ai Usage", "login_not_found"))
 }
 
 fn fetch_zcode() -> ProviderSnapshot {
-    let Some((key, host)) = zcode_coding_plan() else {
-        return empty("zcode", "ZCode Usage", "login_not_found");
-    };
-    let mut hosts = vec![host];
-    if host.contains("bigmodel") {
-        hosts.push("https://api.z.ai");
-    } else {
-        hosts.push("https://open.bigmodel.cn");
+    if let Some((key, host)) = zcode_coding_plan() {
+        let mut hosts = vec![host];
+        if host.contains("bigmodel") {
+            hosts.push("https://api.z.ai");
+        } else {
+            hosts.push("https://open.bigmodel.cn");
+        }
+        return fetch_zhipu_quota("zcode", "z.ai Coding Plan Usage", &key, &hosts);
     }
-    fetch_zhipu_quota("zcode", "ZCode Usage", &key, &hosts)
+    fetch_zcode_session_quota("zcode", "z.ai Coding Plan Usage")
+        .unwrap_or_else(|| empty("zcode", "z.ai Coding Plan Usage", "login_not_found"))
+}
+
+fn fetch_zcode_session_quota(id: &str, title: &str) -> Option<ProviderSnapshot> {
+    let (jwt, coding, preferred_host) = zcode_session_auth()?;
+    let authorization = if jwt.to_ascii_lowercase().starts_with("bearer ") {
+        jwt
+    } else {
+        format!("Bearer {jwt}")
+    };
+    let headers = [
+        ("Authorization", authorization),
+        ("X-Bigmodel-Authorization", coding),
+        ("Bigmodel-Target-Type", "PERSONAL".into()),
+        ("Accept", "application/json".into()),
+    ];
+    let alternate = if preferred_host.contains("bigmodel") {
+        "https://api.z.ai"
+    } else {
+        "https://open.bigmodel.cn"
+    };
+    for host in [preferred_host, alternate] {
+        let url = format!("{host}/api/monitor/usage/quota/limit");
+        if let Ok((200, json)) = http_get_json(&url, &headers) {
+            let mut snap = parse_glm(id, title, json);
+            if snap.reset_credits.is_empty() {
+                snap.reset_credits = pull_zcode_session_reset_credits();
+            }
+            return Some(snap);
+        }
+    }
+    Some(empty(id, title, "session_no_quota"))
 }
 
 fn fetch_zhipu_quota(id: &str, title: &str, key: &str, hosts: &[&str]) -> ProviderSnapshot {
@@ -3047,6 +3093,32 @@ mod tests {
             zcode_coding_plan_from(&obj),
             Some(("zai.plan-key".into(), "https://api.z.ai"))
         );
+    }
+
+    #[test]
+    fn zcode_session_prefers_active_zai_and_keeps_host() {
+        let store = json!({
+            "zcodejwttoken": "jwt-token",
+            "oauth:active_provider": "zai",
+            "oauth:zai:access_token": "zai-session-token",
+            "oauth:bigmodel:access_token": "bigmodel-session-token"
+        });
+        let auth = zcode_session_auth_from(&store, "unused").expect("session auth");
+        assert_eq!(auth.0, "jwt-token");
+        assert_eq!(auth.1, "zai-session-token");
+        assert_eq!(auth.2, "https://api.z.ai");
+    }
+
+    #[test]
+    fn zcode_session_falls_back_to_other_provider_token() {
+        let store = json!({
+            "zcodejwttoken": "jwt-token",
+            "oauth:active_provider": "zai",
+            "oauth:bigmodel:access_token": "fallback-token"
+        });
+        let auth = zcode_session_auth_from(&store, "unused").expect("fallback auth");
+        assert_eq!(auth.1, "fallback-token");
+        assert_eq!(auth.2, "https://api.z.ai");
     }
 
     #[test]

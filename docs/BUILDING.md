@@ -24,7 +24,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 Build both supported installer formats from PowerShell:
 
 ```powershell
-npm run build -- --bundles msi,nsis
+npm run build -- --bundles msi,nsis --no-sign
 ```
 
 The unsigned local packages are written below
@@ -40,7 +40,7 @@ distribution. On Ubuntu 22.04 the CI lane uses:
 ```sh
 sudo apt-get update
 sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-npm run build -- --bundles deb,appimage
+npm run build -- --bundles deb,appimage --no-sign
 ```
 
 Packages are written below `src-tauri/target/release/bundle/deb` and
@@ -52,8 +52,8 @@ The application supports macOS 12 and newer. Build each architecture natively:
 
 ```sh
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
-npm run build -- --target aarch64-apple-darwin --bundles dmg,app
-npm run build -- --target x86_64-apple-darwin --bundles dmg,app
+npm run build -- --target aarch64-apple-darwin --bundles dmg,app --no-sign
+npm run build -- --target x86_64-apple-darwin --bundles dmg,app --no-sign
 ```
 
 These development packages are ad-hoc signed and not notarized. Their DMG and
@@ -74,3 +74,8 @@ because another provider lacks credentials.
 The workflow in `.github/workflows/ci.yml` performs the same native builds on
 pull requests or when manually dispatched. It uploads workflow artifacts only;
 it does not publish a release.
+
+The tag-driven `.github/workflows/release.yml` uses the upstream Tauri signing
+secret when it is available. A fork without that secret automatically adds
+`--no-sign`, so its own `v*` tags can still publish unsigned packages on the
+fork's GitHub Releases page.

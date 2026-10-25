@@ -15,6 +15,7 @@ Notable changes to UsageBar. Dates are UTC+8.
 - **Reliable Gemini Desktop reads.** UsageBar now handles multiple signed-in Google account routes and keeps a DPAPI-protected local session cache because the running desktop app locks its Chromium cookie database.
 - **Edge-aware cards.** Detail and settings cards move to the inward side after the bar is snapped to another edge, including the bottom edge.
 - **Russian documentation and update notes.** Added a complete Russian README, native Russian release-note parsing, and synchronized provider credentials, build instructions, Gemini Desktop behavior, and troubleshooting across all language versions.
+- **Fork release builds.** Tag-driven GitHub Releases use the upstream signing secret when available and automatically build unsigned installable packages in forks where that secret is intentionally unavailable.
 
 ### 0.0.28 — 2026-09-11
 
@@ -168,6 +169,7 @@ Notable changes to UsageBar. Dates are UTC+8.
 - **可靠读取 Gemini Desktop。** UsageBar 现在会尝试多个已登录 Google 帐号路由，并保留由 DPAPI 保护的本机会话缓存，以便桌面应用锁定 Chromium cookie 数据库时仍能读取用量。
 - **贴边方向感知。** 将栏吸附到其他边缘（包括底边）后，详情卡和设置卡会移动到屏幕内侧。
 - **俄文文档与更新说明。** 新增完整俄文 README 和原生俄文 Release Notes 解析，并同步各语言版本中的提供商凭据、构建说明、Gemini Desktop 行为与故障排查。
+- **Fork 发布构建。** 标签触发的 GitHub Release 在上游签名密钥可用时照常签名；Fork 没有该密钥时会自动构建并发布可安装的未签名包。
 
 ### 0.0.28 — 2026-09-11
 

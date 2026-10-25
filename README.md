@@ -94,7 +94,7 @@ Build from source:
 ```bash
 npm install
 npm run tauri dev      # development
-npm run tauri build    # local installer
+npm run tauri build -- --no-sign  # unsigned local installer
 ```
 
 Artifacts:

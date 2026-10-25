@@ -1293,6 +1293,9 @@ const RESET_ICON =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.4 8a4.6 4.6 0 1 0 1.3-3.2"/><path d="M3.2 2.6v2.8h2.8"/></svg>';
 let barHot = false;
 let pointerOver = false;
+let traySummaryOpen = false;
+let traySummaryHot = false;
+let trayLeaveTimer = null;
 
 function setBarHot(on) {
   if (typeof on === "boolean") pointerOver = on;
@@ -1361,6 +1364,31 @@ function paintDock(edge) {
 function compactValue(used) {
   const shown = shownPct(used);
   return shown == null ? "—" : `${Math.round(shown)}%`;
+}
+
+function safeTrayStatus(snap) {
+  if (snap?.loading) return t().querying;
+  if (!snap?.error || snap.error === "no_quota") return t().noData;
+  if (["login_not_found", "session_no_quota", "auth"].includes(snap.error) || snap.error.startsWith("api_error")) {
+    return localizeError(snap);
+  }
+  return t().noData;
+}
+
+function traySummaryLines() {
+  return snaps.map((snap) => {
+    const metrics = chooseCompactMetrics(snap, prefs.visibleMetrics?.[snap.id] || []);
+    const values = metrics.map(
+      (metric) => `${compactMetricLabel(metric, currentLocale())} ${compactValue(metric.percent)}`,
+    );
+    if (!values.length && snap.headlinePercent != null) values.push(compactValue(snap.headlinePercent));
+    return `${vendorName(snap.id)}: ${values.length ? values.join(" · ") : safeTrayStatus(snap)}`;
+  });
+}
+
+function syncTraySummary() {
+  const summary = traySummaryLines().join("\n");
+  invoke("set_tray_summary", { summary }).catch((err) => console.error(err));
 }
 
 function renderBar() {
@@ -2421,6 +2449,7 @@ async function setHovered(id) {
   if (resetToastId) return;
   if (creditToastId && !id) return;
   if (hovered === id) return;
+  if (id) releaseTraySummary();
   const prev = hovered;
   hovered = id;
   const gen = ++hoverGen;
@@ -2458,6 +2487,108 @@ function paintShownPercents() {
   renderBar();
 }
 
+function logicalTrayAnchor(rect, screens) {
+  if (!rect) return null;
+  const screen = screens.find((item) => {
+    const raw = item.raw;
+    return (
+      rect.x + rect.w / 2 >= raw.position.x &&
+      rect.x + rect.w / 2 <= raw.position.x + raw.size.width &&
+      rect.y + rect.h / 2 >= raw.position.y &&
+      rect.y + rect.h / 2 <= raw.position.y + raw.size.height
+    );
+  }) || screens[0];
+  if (!screen) return null;
+  const scale = screen.scale || 1;
+  return {
+    screen,
+    frame: { x: rect.x / scale, y: rect.y / scale, w: rect.w / scale, h: rect.h / scale },
+  };
+}
+
+function trayAnchorEdge(frame, screen) {
+  const distances = [
+    ["left", Math.abs(frame.x - screen.x)],
+    ["right", Math.abs(screen.x + screen.w - (frame.x + frame.w))],
+    ["top", Math.abs(frame.y - screen.y)],
+    ["bottom", Math.abs(screen.y + screen.h - (frame.y + frame.h))],
+  ];
+  distances.sort((a, b) => a[1] - b[1]);
+  return distances[0][0];
+}
+
+function cancelTraySummaryClose() {
+  if (trayLeaveTimer) clearTimeout(trayLeaveTimer);
+  trayLeaveTimer = null;
+}
+
+function releaseTraySummary() {
+  cancelTraySummaryClose();
+  traySummaryOpen = false;
+  traySummaryHot = false;
+}
+
+async function hideTraySummary() {
+  if (!traySummaryOpen || traySummaryHot) return;
+  traySummaryOpen = false;
+  cancelTraySummaryClose();
+  await api().event.emit("usagebar-tip", { show: false });
+  const tipWin = await getWindow("tip");
+  await tipWin?.hide();
+  try {
+    await tipWin?.setIgnoreCursorEvents(true);
+  } catch {
+    /* optional */
+  }
+}
+
+function scheduleTraySummaryClose() {
+  cancelTraySummaryClose();
+  trayLeaveTimer = setTimeout(() => {
+    trayLeaveTimer = null;
+    hideTraySummary().catch((err) => console.error(err));
+  }, 260);
+}
+
+async function showTraySummary(rawRect) {
+  if (prefs.appIcon !== "menubar" || menuOpen || !rawRect) return;
+  const list = await monitors();
+  const anchor = logicalTrayAnchor(rawRect, list);
+  if (!anchor) return;
+  const edge = trayAnchorEdge(anchor.frame, anchor.screen);
+  const width = 310;
+  const height = Math.min(72 + snaps.length * 40, Math.max(150, anchor.screen.wh - 12));
+  const along = isVertical(edge) ? anchor.frame.h / 2 : anchor.frame.w / 2;
+  const target = clampRectToScreen(
+    edgePopupRect({ bar: anchor.frame, edge, card: { w: width, h: height }, along, gap: 6 }),
+    anchor.screen,
+  );
+  const tipWin = await getWindow("tip");
+  if (!tipWin) return;
+  cancelTraySummaryClose();
+  invalidatePopupGeometry();
+  await placeTipWindow(tipWin, target);
+  tipStageFrame = { ...target };
+  traySummaryOpen = true;
+  try {
+    await tipWin.setIgnoreCursorEvents(false);
+    await tipWin.setFocusable(false);
+  } catch {
+    /* optional */
+  }
+  await api().event.emit("usagebar-tip", {
+    show: true,
+    kind: "tray-summary",
+    snaps,
+    locale: currentLocale(),
+    displayValue: prefs.displayValue,
+    visibleMetrics: normalizeVisibleMetrics(prefs.visibleMetrics),
+    arrow: popupArrow(edge),
+  });
+  await tipWin.show();
+  refreshWindowBlur();
+}
+
 function applyIncomingSnap(snap) {
   if (!snap?.id) return;
   const next = applyNoticeAcks({ ...snap, loading: false });
@@ -2470,6 +2601,7 @@ function applyIncomingSnap(snap) {
     el.classList.toggle("reset", !!(next.resetNotice || next.creditNotice));
     paintShownPercents();
   }
+  syncTraySummary();
   if (hovered === next.id) renderTip().catch((err) => console.error(err));
 }
 
@@ -2533,6 +2665,7 @@ async function refresh() {
       if (Array.isArray(got)) {
         snaps = slotsFrom(got).map((s) => ({ ...s, loading: false }));
       }
+      syncTraySummary();
       await finishRefreshPaint();
     } while (refreshQueued);
   } finally {
@@ -3013,6 +3146,7 @@ function refreshMenuIfOpen(reposition = false) {
 }
 
 async function showPanelMenu(reposition = true, hold) {
+  releaseTraySummary();
   if (hold === "pin") menuHold = "pin";
   else if (!menuHold) menuHold = hold || "hover";
   menuPage = "menu";
@@ -3053,6 +3187,7 @@ async function showPanelMenu(reposition = true, hold) {
 }
 
 async function showProvidersPanel(reposition = true) {
+  releaseTraySummary();
   // 提供商面板要改窗口宽高；悬停态在 Windows 上会因误报 leave 闪一下关掉。
   pinOpenMenu();
   menuPage = "providers";
@@ -3349,6 +3484,7 @@ async function startBar() {
         .then((frame) => showUsageTip(frame))
         .catch((err) => console.error(err));
     }
+    syncTraySummary();
   });
   await api().event.listen("usagebar-over", (e) => {
     setBarHot(!!e.payload);
@@ -3395,9 +3531,22 @@ async function startBar() {
     setHovered(id).catch((err) => console.error(err));
   });
   await api().event.listen("usagebar-tip-hover", (e) => {
+    if (traySummaryOpen) {
+      traySummaryHot = !!e.payload;
+      if (traySummaryHot) cancelTraySummaryClose();
+      else scheduleTraySummaryClose();
+      return;
+    }
     if (menuHold !== "hover") return;
     if (e.payload) cancelHoverMenuClose();
     else scheduleHoverMenuClose();
+  });
+  await api().event.listen("usagebar-tray-hover", (e) => {
+    if (e.payload?.show) {
+      showTraySummary(e.payload.rect).catch((err) => console.error(err));
+    } else {
+      scheduleTraySummaryClose();
+    }
   });
   await api().event.listen("usagebar-reset-ack", (e) => {
     closeResetToast(e.payload).catch((err) => console.error(err));
@@ -3673,7 +3822,7 @@ function paintUsageCard(payload) {
   const card = document.getElementById("tip-card");
   card.dataset.resetId = notice ? snap.id : "";
   card.dataset.creditId = soon ? snap.id : "";
-  card.classList.remove("update-only", "update-notes", "menu-card", "tip-card-fade");
+  card.classList.remove("update-only", "update-notes", "menu-card", "tray-summary-card", "tip-card-fade");
   card.innerHTML = `
     ${close}
     <div class="card-head">
@@ -3690,6 +3839,28 @@ function paintUsageCard(payload) {
   tip.classList.toggle("hot", tipHot);
 }
 
+function traySummaryHtml(items) {
+  const rows = (items || [])
+    .map((snap) => {
+      const metrics = chooseCompactMetrics(snap, prefs.visibleMetrics?.[snap.id] || []);
+      const values = metrics.length
+        ? metrics
+            .map(
+              (metric) => `<span><small>${escapeHtml(compactMetricLabel(metric, currentLocale()))}</small><b>${compactValue(metric.percent)}</b></span>`,
+            )
+            .join("")
+        : snap.headlinePercent != null
+          ? `<span><b>${compactValue(snap.headlinePercent)}</b></span>`
+          : `<em>${escapeHtml(safeTrayStatus(snap))}</em>`;
+      return `<div class="tray-provider">
+        <span class="tray-provider-name">${escapeHtml(vendorName(snap.id))}</span>
+        <span class="tray-provider-values">${values}</span>
+      </div>`;
+    })
+    .join("");
+  return `<div class="tray-summary-title">UsageBar</div><div class="tray-summary-list">${rows}</div>`;
+}
+
 function paintTip(payload) {
   if (!payload?.show) {
     resetTipLayout();
@@ -3699,6 +3870,23 @@ function paintTip(payload) {
   prefs.locale = normalizeLocale(payload.locale);
   if (payload.displayValue) {
     prefs.displayValue = payload.displayValue === "remaining" ? "remaining" : "used";
+  }
+  if (payload.kind === "tray-summary") {
+    prefs.visibleMetrics = normalizeVisibleMetrics(payload.visibleMetrics);
+    applyLocale();
+    clearTipSlide();
+    const root = document.getElementById("tip-root");
+    const tip = document.getElementById("tip");
+    const card = document.getElementById("tip-card");
+    root.classList.remove("menu-backdrop");
+    card.dataset.resetId = "";
+    card.dataset.creditId = "";
+    card.className = "card tray-summary-card";
+    card.innerHTML = traySummaryHtml(payload.snaps);
+    tip.className = "tip tray-summary-tip arrow-" + (payload.arrow || "down");
+    document.getElementById("tip-pointer").hidden = true;
+    paintOverlayChrome();
+    return;
   }
   if (payload.kind === "providers" && payload.state?.visibleProviders) {
     prefs.visibleProviders = normalizeVisible(payload.state.visibleProviders);
@@ -3714,7 +3902,7 @@ function paintTip(payload) {
     const card = document.getElementById("tip-card");
     root.classList.add("menu-backdrop");
     card.dataset.resetId = "";
-    card.classList.remove("update-only", "update-notes");
+    card.classList.remove("update-only", "update-notes", "tray-summary-card");
     card.classList.add("menu-card");
     card.classList.toggle("providers-card", payload.kind === "providers");
     card.innerHTML =
@@ -3766,7 +3954,7 @@ function paintUpdateCard(payload) {
   const card = document.getElementById("tip-card");
   card.dataset.resetId = "";
   card.dataset.creditId = "";
-  card.classList.remove("menu-card", "update-only", "tip-card-fade");
+  card.classList.remove("menu-card", "tray-summary-card", "update-only", "tip-card-fade");
   card.classList.add("update-notes");
   const notes = notesHtml(payload.notes);
   card.innerHTML = `

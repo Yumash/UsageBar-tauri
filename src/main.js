@@ -1511,7 +1511,9 @@ function tipContentPayload(extra = {}) {
 
 function updateNotesText(info) {
   if (!info) return "";
-  return isZh() ? info.notesZh || info.notesEn || "" : info.notesEn || info.notesZh || "";
+  if (isZh()) return info.notesZh || info.notesEn || info.notesRu || "";
+  if (isRu()) return info.notesRu || info.notesEn || info.notesZh || "";
+  return info.notesEn || info.notesZh || info.notesRu || "";
 }
 
 function updateTipHeight(notes) {

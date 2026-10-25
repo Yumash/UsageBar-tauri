@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
@@ -18,6 +19,8 @@ pub struct Prefs {
     pub display_value: String,
     pub locale: String,
     pub visible_providers: Vec<String>,
+    /// Empty or absent per-provider entries mean automatic metric selection.
+    pub visible_metrics: HashMap<String, Vec<String>>,
     pub auto_check_update: bool,
     pub skipped_update_version: String,
     /// Last placed origin in logical pixels. Negative means unset.
@@ -104,12 +107,7 @@ pub fn normalize_app_icon(value: &str) -> String {
 }
 
 pub fn default_visible_providers() -> Vec<String> {
-    vec![
-        "codex".into(),
-        "cursor".into(),
-        "grok".into(),
-        "glm".into(),
-    ]
+    vec!["codex".into(), "cursor".into(), "grok".into(), "glm".into()]
 }
 
 pub fn catalog_has(id: &str) -> bool {
@@ -131,6 +129,34 @@ pub fn normalize_visible(ids: &[String]) -> Vec<String> {
     } else {
         out
     }
+}
+
+pub fn normalize_visible_metrics(
+    selections: &HashMap<String, Vec<String>>,
+) -> HashMap<String, Vec<String>> {
+    let mut out = HashMap::new();
+    for (provider, ids) in selections {
+        if !catalog_has(provider) {
+            continue;
+        }
+        let mut clean = Vec::new();
+        for id in ids {
+            let id = id.trim();
+            let valid = !id.is_empty()
+                && id.len() <= 96
+                && id.chars().all(|c| !c.is_control() && !c.is_whitespace());
+            if valid && !clean.iter().any(|existing| existing == id) {
+                clean.push(id.to_string());
+            }
+            if clean.len() == 2 {
+                break;
+            }
+        }
+        if !clean.is_empty() {
+            out.insert(provider.clone(), clean);
+        }
+    }
+    out
 }
 
 pub fn display_slots(prefs: &Prefs) -> Vec<String> {
@@ -161,6 +187,7 @@ impl Default for Prefs {
             display_value: default_display_value(),
             locale: default_locale(),
             visible_providers: default_visible_providers(),
+            visible_metrics: HashMap::new(),
             auto_check_update: false,
             skipped_update_version: String::new(),
             last_x: UNSET,
@@ -188,6 +215,7 @@ impl Prefs {
         self.display_value = normalize_display_value(&self.display_value);
         self.locale = normalize_locale(&self.locale);
         self.visible_providers = normalize_visible(&self.visible_providers);
+        self.visible_metrics = normalize_visible_metrics(&self.visible_metrics);
         if !self.along.is_finite() {
             self.along = UNSET;
         }
@@ -236,6 +264,7 @@ pub fn apply_incoming(base: Prefs, incoming: Prefs) -> Prefs {
     let edge_changed = incoming.edge != base.edge;
     let mut prefs = merge(base.clone(), incoming);
     prefs.visible_providers = base.visible_providers;
+    prefs.visible_metrics = base.visible_metrics;
     prefs.display_style = base.display_style;
     prefs.bar_opacity = base.bar_opacity;
     prefs.bar_blur = base.bar_blur;
@@ -268,7 +297,8 @@ pub fn parse_text(text: &str) -> Prefs {
     if let Ok(value) = serde_json::from_str::<serde_json::Value>(text) {
         if let Some(obj) = value.as_object() {
             let mut prefs = Prefs::default();
-            if let Ok(partial) = serde_json::from_value::<Prefs>(serde_json::Value::Object(obj.clone()))
+            if let Ok(partial) =
+                serde_json::from_value::<Prefs>(serde_json::Value::Object(obj.clone()))
             {
                 prefs = partial;
             }
@@ -349,6 +379,51 @@ mod tests {
     }
 
     #[test]
+    fn metric_selection_defaults_to_auto_for_legacy_preferences() {
+        let parsed = parse_text(r#"{"visibleProviders":["codex","claude"]}"#);
+        assert_eq!(parsed.visible_providers, vec!["codex", "claude"]);
+        assert!(parsed.visible_metrics.is_empty());
+    }
+
+    #[test]
+    fn metric_selection_dedupes_caps_and_drops_invalid_entries() {
+        let selections = HashMap::from([
+            (
+                "codex".into(),
+                vec![
+                    "five_hour".into(),
+                    "five_hour".into(),
+                    "weekly".into(),
+                    "monthly".into(),
+                ],
+            ),
+            (
+                "claude".into(),
+                vec!["  seven_day  ".into(), "bad id".into()],
+            ),
+            ("unknown".into(), vec!["weekly".into()]),
+        ]);
+        let clean = normalize_visible_metrics(&selections);
+        assert_eq!(
+            clean.get("codex"),
+            Some(&vec!["five_hour".into(), "weekly".into()])
+        );
+        assert_eq!(clean.get("claude"), Some(&vec!["seven_day".into()]));
+        assert!(!clean.contains_key("unknown"));
+    }
+
+    #[test]
+    fn metric_selection_round_trips_explicit_choices() {
+        let parsed =
+            parse_text(r#"{"visibleMetrics":{"codex":["primary","secondary"],"claude":[]}}"#);
+        assert_eq!(
+            parsed.visible_metrics.get("codex"),
+            Some(&vec!["primary".into(), "secondary".into()])
+        );
+        assert!(!parsed.visible_metrics.contains_key("claude"));
+    }
+
+    #[test]
     fn display_slots_follow_selection() {
         let mut prefs = Prefs::default();
         prefs.visible_providers = vec!["claude".into()];
@@ -358,7 +433,12 @@ mod tests {
 
     #[test]
     fn normalize_caps_at_ten() {
-        let ids: Vec<String> = CATALOG.iter().map(|s| (*s).to_string()).cycle().take(20).collect();
+        let ids: Vec<String> = CATALOG
+            .iter()
+            .map(|s| (*s).to_string())
+            .cycle()
+            .take(20)
+            .collect();
         assert_eq!(normalize_visible(&ids).len(), CATALOG.len().min(SLOT_MAX));
     }
 
@@ -442,7 +522,8 @@ mod tests {
 
     #[test]
     fn partial_json_does_not_reset_known_keys() {
-        let parsed = parse_text(r#"{"edge":"left","along":120.5,"visibleProviders":["claude","gemini"]}"#);
+        let parsed =
+            parse_text(r#"{"edge":"left","along":120.5,"visibleProviders":["claude","gemini"]}"#);
         assert_eq!(parsed.edge, "left");
         assert_eq!(parsed.along, 120.5);
         assert_eq!(parsed.visible_providers, vec!["claude", "gemini"]);

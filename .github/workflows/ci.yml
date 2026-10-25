@@ -63,4 +63,3 @@ jobs:
             src-tauri/target/release/bundle/appimage/**
             src-tauri/target/*/release/bundle/dmg/**
             src-tauri/target/*/release/bundle/macos/**
-

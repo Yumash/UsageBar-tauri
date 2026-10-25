@@ -32,6 +32,12 @@ The unsigned local packages are written below
 `src-tauri/target/release/bundle/nsis`. WebView2 is downloaded by the installer
 when it is not already present.
 
+The NSIS package is the primary interactive Windows installer. It includes
+English, Russian, and Simplified Chinese, an install-time **Start with Windows**
+choice, directory and Start Menu pages, and explicit finish-page choices for a
+desktop shortcut and launching the app. Passive updater installs preserve the
+existing autostart choice.
+
 ## Linux
 
 Install the WebKitGTK, tray, SVG, and packaging dependencies for the target

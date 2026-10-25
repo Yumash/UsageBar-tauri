@@ -79,6 +79,7 @@ Cursor 会话文件位置：
    - macOS Intel：`x64.dmg`
    - Windows：`x64-setup.exe`
    - Linux：`.AppImage` 或 `.deb`
+   - Windows setup 会先显示语言选择，然后进入完整安装向导。在选项页可选择是否随 Windows 登录自动启动。完成页会分别提供创建桌面快捷方式和立即启动，两项默认都不勾选；之后仍可在 UsageBar 设置中通过**登录时打开**修改自动启动。
 2. macOS 包是临时签名（未做 Apple 公证）。把 `UsageBar.app` 拖进 **应用程序** 后，在终端执行一次（Sequoia / Tahoe 上必须这样做；「右键 → 打开」常常没用）：
 
    ```bash

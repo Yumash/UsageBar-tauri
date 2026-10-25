@@ -6,6 +6,12 @@ Notable changes to UsageBar. Dates are UTC+8.
 
 ## English
 
+### 0.0.30 — 2026-10-25
+
+- **Guided Windows setup.** The NSIS package now opens a visible multilingual wizard with an explicit startup-options page, install directory, Start Menu folder, progress, and finish steps.
+- **Autostart at install time.** A fresh installation can register UsageBar to start with Windows. The choice is reflected by the existing **Open at login** setting, preserved by passive updates, and removed on uninstall.
+- **No surprise launch.** **Launch UsageBar** and **Create desktop shortcut** remain explicit finish-page choices and are unchecked by default, so closing setup does not silently turn into running the application.
+
 ### 0.0.29 — 2026-10-25
 
 - **Two compact quota values.** Each provider can show the session / 5-hour and weekly values together as two plain numbers. Per-provider metric selection supports Auto or up to two explicit windows; provider visibility and order still use the complete existing catalog.
@@ -159,6 +165,12 @@ Notable changes to UsageBar. Dates are UTC+8.
 - First public build: Codex, Cursor, Grok, GLM edge bar.
 
 ## 中文
+
+### 0.0.30 — 2026-10-25
+
+- **Windows 引导式安装。** NSIS 安装包现在会显示多语言向导，包含独立的启动选项、安装目录、开始菜单目录、安装进度和完成页面。
+- **安装时选择自动启动。** 全新安装可选择让 UsageBar 随 Windows 登录自动启动；该选择会同步到应用内的**登录时打开**设置，被静默更新保留，并在卸载时删除。
+- **不再意外启动。** **启动 UsageBar**和**创建桌面快捷方式**仍是完成页面上的明确选项，并且默认不勾选；关闭安装程序不会直接变成启动应用。
 
 ### 0.0.29 — 2026-10-25
 

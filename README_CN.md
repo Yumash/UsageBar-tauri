@@ -53,12 +53,12 @@ macOS 12+ · Windows · Linux · MIT License · [下载最新版](https://github
 | --- | --- | --- | --- |
 | **Codex** | `~/.codex/auth.json` | ChatGPT `backend-api/wham/usage` + `wham/rate-limit-reset-credits` | 5 小时 + 周额度（及月 / 额外窗口）；详情底部显示重置卡和到期时间 |
 | **Cursor** | Cursor `state.vscdb` 会话（旧版 `cursorAuth/userId`，或新版 `glass.lastSignedInAuthId` / JWT `sub`） | `cursor.com/api/usage-summary` + Grok Bot 周额度 | 月度账期：套餐 + API（及按需 / 团队共享 / Grok Bot 周额度） |
-| **Grok** | `~/.grok/auth.json` | `cli-chat-proxy.grok.com/v1/billing` + grok.com `GetRemainingResets` | 周和/或月额度（及产品 / 按需）。重置卡来自 grok.com 库存（预付余额不是重置卡） |
+| **Grok CLI** | `~/.grok/auth.json` | `cli-chat-proxy.grok.com/v1/billing` + grok.com `GetRemainingResets` | 独立 Grok CLI 账户的周和/或月额度（及产品 / 按需），与 Cursor 内已经显示的 Grok Bot 额度不同。重置卡来自 grok.com 库存（预付余额不是重置卡） |
 | **GLM** | `GLM_API_KEY` / `~/.zai/config.json` / cc-switch | `api.z.ai` 或智谱 quota | `limits[]` 里有的窗口都显示（5 小时、周、月、MCP 等）。重置卡来自本机 ZCode 登录态（`zcode.z.ai` 的 coding-plan reset status），或 quota 载荷里已带的列表 |
 | **ZCode** | `~/.zcode/v2/config.json` 的 Coding Plan Key + `credentials.json` 登录态 | 与 GLM 同一套官方配额接口；重置卡走 `zcode.z.ai` `/api/v1/coding-plan/reset/status` | `limits[]` 里有的窗口都显示（5 小时、周、月、MCP 等）。ZCode 已登录时显示 5 小时 / 周重置卡 |
 | **Claude** | macOS 钥匙串 `Claude Code-credentials`，或 `~/.claude/.credentials.json` | Anthropic `api/oauth/usage` | 5 小时 + 周额度 + 模型周额度（及月超额） |
-| **Copilot** | `~/.config/github-copilot/apps.json` / `hosts.json`，或 `gh` 的 `hosts.yml`，或 `GITHUB_TOKEN` | GitHub `copilot_internal/user` | 有上限的月额度（通常是 Premium）+ 重置日期 |
-| **Gemini** | `~/.gemini/oauth_creds.json` | Cloud Code Assist `retrieveUserQuota` | 各模型剩余比例 + 重置 |
+| **Copilot** | `~/.config/github-copilot/apps.json` / `hosts.json`、已登录的 GitHub CLI（包括系统钥匙串），或 `GITHUB_TOKEN` | GitHub `copilot_internal/user` | 有上限的月额度（通常是 Premium）+ 重置日期 |
+| **Gemini** | Gemini CLI 的 `~/.gemini/oauth_creds.json`；Windows 上也可使用已登录的 Google Gemini 桌面会话 | Cloud Code Assist `retrieveUserQuota`，或 Gemini 应用用量查询 | 优先显示 CLI / Code Assist 各模型额度；否则显示 consumer Google AI 套餐的 5 小时与周额度。桌面 cookie 只在内存中解密，且只发送给 Google |
 | **Antigravity** | `~/.gemini/antigravity-cli/antigravity-oauth-token` | Cloud Code Assist `fetchAvailableModels` | 各模型剩余比例 + 重置 |
 
 Cursor 会话文件位置：

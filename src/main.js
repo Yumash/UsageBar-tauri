@@ -456,6 +456,32 @@ function usageTitle(id) {
   return `${name} Usage`;
 }
 
+function normalizeVisibleMetrics(selections) {
+  const out = {};
+  if (!selections || typeof selections !== "object" || Array.isArray(selections)) return out;
+  for (const [provider, ids] of Object.entries(selections)) {
+    if (!CATALOG_IDS.includes(provider) || !Array.isArray(ids)) continue;
+    const clean = [];
+    for (const raw of ids) {
+      const id = typeof raw === "string" ? raw.trim() : "";
+      if (id && id.length <= 96 && !/\s/.test(id) && !clean.includes(id)) clean.push(id);
+      if (clean.length === 2) break;
+    }
+    if (clean.length) out[provider] = clean;
+  }
+  return out;
+}
+
+function metricSelectionText() {
+  if (isZh()) {
+    return { auto: "\u81ea\u52a8", title: "\u9762\u677f\u4e0a\u7684\u989d\u5ea6", unavailable: "\u8fde\u63a5\u540e\u53ef\u9009\u62e9\u989d\u5ea6", max: "\u6700\u591a\u9009 2 \u4e2a" };
+  }
+  if (isRu()) {
+    return { auto: "\u0410\u0432\u0442\u043e", title: "\u041b\u0438\u043c\u0438\u0442\u044b \u043d\u0430 \u043f\u0430\u043d\u0435\u043b\u0438", unavailable: "\u041b\u0438\u043c\u0438\u0442\u044b \u043f\u043e\u044f\u0432\u044f\u0442\u0441\u044f \u043f\u043e\u0441\u043b\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f", max: "\u041c\u043e\u0436\u043d\u043e \u0432\u044b\u0431\u0440\u0430\u0442\u044c \u043d\u0435 \u0431\u043e\u043b\u044c\u0448\u0435 2" };
+  }
+  return { auto: "Auto", title: "Quotas on the bar", unavailable: "Connect to choose quotas", max: "Choose up to 2" };
+}
+
 function localizeMetricLabel(label) {
   if (!label) return "";
   const dict = METRIC_LABELS[currentLocale()] || METRIC_LABELS.en;
@@ -549,6 +575,7 @@ function normalizeLoadedPrefs(p) {
   next.displayValue = next.displayValue === "remaining" ? "remaining" : "used";
   next.locale = normalizeLocale(next.locale);
   next.visibleProviders = normalizeVisible(next.visibleProviders);
+  next.visibleMetrics = normalizeVisibleMetrics(next.visibleMetrics);
   next.autoCheckUpdate = !!next.autoCheckUpdate;
   next.skippedUpdateVersion = next.skippedUpdateVersion || "";
   if (typeof next.lastX !== "number" || Number.isNaN(next.lastX)) next.lastX = -1;
@@ -1206,6 +1233,7 @@ let prefs = {
   displayValue: "used",
   locale: "en",
   visibleProviders: DEFAULT_VISIBLE.slice(),
+  visibleMetrics: {},
   autoCheckUpdate: false,
   skippedUpdateVersion: "",
   lastX: -1,
@@ -1224,6 +1252,7 @@ let snaps = [
 ];
 let hovered = null;
 let hoverGen = 0;
+let providerMetricOptions = {};
 let tipSlideGen = 0;
 let tipSlideFrame = null;
 let tipStageFrame = null;
@@ -2765,13 +2794,19 @@ function menuPanelHeight(st) {
   return menuSpec(st).reduce((sum, r) => sum + (H[r.k] || 0), 0) + 16;
 }
 
-function providersPanelHeight() {
-  return 28 + 60 + 20 + CATALOG_IDS.length * 40 + 16;
+function providersPanelHeight(st) {
+  const activeWithChoices = normalizeVisible(st.visibleProviders).filter(
+    (id) => (st.providerMetrics?.[id] || []).length,
+  ).length;
+  return 28 + 60 + 20 + CATALOG_IDS.length * 40 + activeWithChoices * 38 + 16;
 }
 
 function providersPanelHtml(st) {
   const ui = t();
+  const metricUi = metricSelectionText();
   const vis = normalizeVisible(st.visibleProviders);
+  const selections = normalizeVisibleMetrics(st.visibleMetrics);
+  const options = st.providerMetrics || {};
   const selected = new Set(vis);
   const rest = CATALOG_IDS.filter((id) => !selected.has(id));
   const warn = vis.length >= SLOT_MAX || vis.length <= SLOT_MIN;
@@ -2790,7 +2825,33 @@ function providersPanelHtml(st) {
             .map((p) => `<path ${rule} d="${p}"/>`)
             .join("")}</svg></span>`
         : "";
-      return `<div class="settings-row" data-id="${id}">
+      const available = (options[id] || []).filter(
+        (metric, pos, all) => metric?.id && all.findIndex((item) => item.id === metric.id) === pos,
+      );
+      const configured = (selections[id] || []).filter((metricId) =>
+        available.some((metric) => metric.id === metricId),
+      );
+      const auto = configured.length === 0;
+      const choices = available
+        .map((metric) => {
+          const checked = configured.includes(metric.id);
+          const disabled = !checked && configured.length >= 2;
+          return `<label class="quota-chip${checked ? " selected" : ""}" title="${escapeHtml(localizeMetricLabel(metric.label))}">
+            <input type="checkbox" data-metric="${escapeHtml(metric.id)}" data-provider="${id}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}/>
+            <span>${escapeHtml(localizeMetricLabel(metric.label))}</span>
+          </label>`;
+        })
+        .join("");
+      const picker = on
+        ? `<div class="quota-picker" data-provider-picker="${id}">
+            <div class="quota-picker-head"><span>${metricUi.title}</span><span>${configured.length >= 2 ? metricUi.max : ""}</span></div>
+            <div class="quota-options">
+              <label class="quota-chip${auto ? " selected" : ""}"><input type="checkbox" data-metric-auto="${id}" ${auto ? "checked" : ""}/><span>${metricUi.auto}</span></label>
+              ${choices || `<span class="quota-unavailable">${metricUi.unavailable}</span>`}
+            </div>
+          </div>`
+        : "";
+      return `<div class="provider-setting"><div class="settings-row" data-id="${id}">
         <label>
           <input type="checkbox" data-toggle="${id}" ${on ? "checked" : ""} ${
             !on && vis.length >= SLOT_MAX ? "disabled" : ""
@@ -2800,7 +2861,7 @@ function providersPanelHtml(st) {
         </label>
         <button type="button" data-move="${id}" data-dir="-1" ${upOff ? "disabled" : ""} title="${ui.moveUp}">↑</button>
         <button type="button" data-move="${id}" data-dir="1" ${downOff ? "disabled" : ""} title="${ui.moveDown}">↓</button>
-      </div>`;
+      </div>${picker}</div>`;
     })
     .join("");
   return `
@@ -3003,10 +3064,17 @@ async function showProvidersPanel(reposition = true) {
   const st = {
     locale: currentLocale(),
     visibleProviders: normalizeVisible(prefs.visibleProviders),
+    visibleMetrics: normalizeVisibleMetrics(prefs.visibleMetrics),
+    providerMetrics: Object.fromEntries(
+      snaps.map((snap) => [
+        snap.id,
+        (snap.metrics || []).map((metric) => ({ id: metric.id, label: metric.label })),
+      ]),
+    ),
   };
   const { wasOpen, tipWin, arrow, pointerAt } = await placeMenuOverlay(
     PROVIDERS_W,
-    providersPanelHeight(),
+    providersPanelHeight(st),
     reposition
   );
   await api().event.emit("usagebar-tip", {
@@ -3636,6 +3704,8 @@ function paintTip(payload) {
   }
   if (payload.kind === "providers" && payload.state?.visibleProviders) {
     prefs.visibleProviders = normalizeVisible(payload.state.visibleProviders);
+    prefs.visibleMetrics = normalizeVisibleMetrics(payload.state.visibleMetrics);
+    providerMetricOptions = payload.state.providerMetrics || {};
   }
   applyLocale();
   const ptr = document.getElementById("tip-pointer");
@@ -3813,12 +3883,20 @@ async function startTip() {
     if (!card?.classList.contains("providers-card")) return;
     card.innerHTML = providersPanelHtml({
       visibleProviders: normalizeVisible(prefs.visibleProviders),
+      visibleMetrics: normalizeVisibleMetrics(prefs.visibleMetrics),
+      providerMetrics: providerMetricOptions,
     });
     paintOverlayChrome();
   };
   const saveVisibleProviders = (next) => {
     prefs.visibleProviders = normalizeVisible(next);
     invoke("set_visible_providers", { ids: prefs.visibleProviders })
+      .then(() => paintProvidersCard())
+      .catch((err) => console.error(err));
+  };
+  const saveVisibleMetrics = (next) => {
+    prefs.visibleMetrics = normalizeVisibleMetrics(next);
+    invoke("set_visible_metrics", { selections: prefs.visibleMetrics })
       .then(() => paintProvidersCard())
       .catch((err) => console.error(err));
   };
@@ -3858,6 +3936,30 @@ async function startTip() {
     applyLookSlider(range.dataset.look, Number(range.value));
   });
   tipRoot.addEventListener("change", (e) => {
+    const auto = e.target.closest("input[data-metric-auto]");
+    if (auto && document.getElementById("tip-card")?.classList.contains("providers-card")) {
+      const next = normalizeVisibleMetrics(prefs.visibleMetrics);
+      delete next[auto.dataset.metricAuto];
+      saveVisibleMetrics(next);
+      return;
+    }
+    const metric = e.target.closest("input[data-metric]");
+    if (metric && document.getElementById("tip-card")?.classList.contains("providers-card")) {
+      const provider = metric.dataset.provider;
+      const next = normalizeVisibleMetrics(prefs.visibleMetrics);
+      let selected = (next[provider] || []).filter((id) =>
+        (providerMetricOptions[provider] || []).some((option) => option.id === id),
+      );
+      if (metric.checked) {
+        if (!selected.includes(metric.dataset.metric) && selected.length < 2) selected.push(metric.dataset.metric);
+      } else {
+        selected = selected.filter((id) => id !== metric.dataset.metric);
+      }
+      if (selected.length) next[provider] = selected;
+      else delete next[provider];
+      saveVisibleMetrics(next);
+      return;
+    }
     const input = e.target.closest("input[data-toggle]");
     if (!input || !document.getElementById("tip-card")?.classList.contains("providers-card")) return;
     const id = input.dataset.toggle;

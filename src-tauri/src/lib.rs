@@ -295,6 +295,30 @@ fn build_tray_menu(app: &AppHandle, prefs: &Prefs) -> tauri::Result<Menu<tauri::
     Menu::with_items(app, &[&toggle, &refresh, &settings, &separator, &quit])
 }
 
+#[tauri::command]
+fn set_visible_metrics(app: AppHandle, selections: std::collections::HashMap<String, Vec<String>>) {
+    let selections = prefs::normalize_visible_metrics(&selections);
+    let prefs = if let Some(state) = app.try_state::<Overlay>() {
+        let Ok(mut slot) = state.prefs.lock() else {
+            return;
+        };
+        if slot.visible_metrics == selections {
+            let current = slot.clone();
+            drop(slot);
+            let _ = app.emit("usagebar-prefs", &current);
+            return;
+        }
+        slot.visible_metrics = selections;
+        slot.clone()
+    } else {
+        let mut prefs = prefs::load();
+        prefs.visible_metrics = selections;
+        prefs
+    };
+    prefs::save(&prefs);
+    let _ = app.emit("usagebar-prefs", &prefs);
+}
+
 fn set_bar_visible(app: &AppHandle, visible: bool) {
     BAR_HIDDEN_BY_TRAY.store(!visible, Ordering::Release);
     if visible {
@@ -403,7 +427,14 @@ fn set_macos_dock_visible(_app: &AppHandle, visible: bool) {
         low_long_of_psn: CURRENT_PROCESS,
     };
     unsafe {
-        TransformProcessType(&psn, if visible { TO_FOREGROUND } else { TO_UI_ELEMENT });
+        TransformProcessType(
+            &psn,
+            if visible {
+                TO_FOREGROUND
+            } else {
+                TO_UI_ELEMENT
+            },
+        );
     }
 }
 
@@ -472,6 +503,7 @@ pub fn run() {
             get_prefs,
             set_prefs,
             set_visible_providers,
+            set_visible_metrics,
             set_bar_look,
             refresh_window_blur,
             set_window_blur,

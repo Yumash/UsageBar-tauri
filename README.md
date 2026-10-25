@@ -1,6 +1,6 @@
 # UsageBar
 
-[English](README.md) · [中文](README_CN.md)
+[English](README.md) · [中文](README_CN.md) · [Русский](README_RU.md)
 
 A tiny edge bar that shows AI plan usage for **Codex**, **Cursor**, **Grok**, **GLM**, and optionally **ZCode**, **Claude**, **Copilot**, **Gemini**, and **Antigravity**. It reads local login state only, talks to each official API, and never sends your chats through a third-party server.
 
@@ -87,7 +87,7 @@ Needs a working login **on that same machine** for whichever tools you show. The
    ```
 
    The “UsageBar.app is damaged” dialog is Gatekeeper quarantine, not a broken download. Do not move it to the Trash.
-3. Sign in to the tools you want to watch (Codex CLI, Cursor, Grok CLI, GLM, Claude Code, GitHub Copilot, Gemini CLI, Antigravity). UsageBar will pick up those sessions.
+3. Sign in to the tools you want to watch (Codex CLI, Cursor, Grok CLI, GLM/z.ai, ZCode, Claude Code, GitHub Copilot, Gemini CLI or Gemini Desktop on Windows, Antigravity). UsageBar will pick up those sessions.
 
 Build from source:
 
@@ -100,7 +100,7 @@ npm run tauri build    # local installer
 Artifacts:
 
 - macOS: `src-tauri/target/release/bundle/dmg`
-- Windows: `src-tauri/target/release/bundle/nsis`
+- Windows: `src-tauri/target/release/bundle/nsis` or `msi`
 - Linux: `src-tauri/target/release/bundle/appimage` or `deb`
 
 Pull requests run the same JavaScript and Rust tests, then build unsigned Windows x64, Linux x64, macOS Apple Silicon, and macOS Intel packages in `.github/workflows/ci.yml`.
@@ -137,8 +137,13 @@ Login is `~/.grok/auth.json`. Newer Grok CLI unified-billing responses dropped `
 **I sent UsageBar to a friend and they see no Cursor / Codex data.**  
 Expected. Credentials stay on each machine. They need their own logins for the tools they show.
 
-**Claude / Copilot / Gemini / Antigravity shows “no data”.**  
-Sign in with that tool’s official CLI or editor on this computer first. Claude reads Keychain / `~/.claude/.credentials.json`. Copilot reads `~/.config/github-copilot`. Gemini reads `~/.gemini/oauth_creds.json`. Antigravity reads `~/.gemini/antigravity-cli/antigravity-oauth-token`. UsageBar does not estimate tokens from local logs.
+**Claude / Copilot / Gemini / Antigravity shows “no data”.**
+
+Sign in with that tool’s official CLI or app on this computer first. Claude reads Keychain / `~/.claude/.credentials.json`. Copilot reads its local config, authenticated GitHub CLI/keychain, or `GITHUB_TOKEN`. Gemini reads `~/.gemini/oauth_creds.json`, and on Windows can use the signed-in Gemini Desktop session. Antigravity reads `~/.gemini/antigravity-cli/antigravity-oauth-token`. UsageBar does not estimate tokens from local logs.
+
+**Gemini Desktop is running and locks its cookie database.**
+
+This is normal on Windows. When the database is available, UsageBar stores the required session in a local Windows DPAPI-protected cache, then continues reading the 5-hour and weekly limits while Gemini is running. If Gemini has never appeared, close Gemini once, choose **Refresh now**, then reopen it.
 
 **Does UsageBar upload chats or package my tokens?**  
 No. It only reads local session files / env keys and calls official usage APIs. Tokens are never bundled into the installer.

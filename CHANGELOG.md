@@ -11,6 +11,7 @@ Notable changes to UsageBar. Dates are UTC+8.
 - **Two compact quota values.** Each provider can show the session / 5-hour and weekly values together as two plain numbers. Per-provider metric selection supports Auto or up to two explicit windows; provider visibility and order still use the complete existing catalog.
 - **Tray quota summary.** Hovering the tray icon shows cached limits, and the tray menu carries the same summary where native hover events are unavailable.
 - **Current ZCode credentials.** z.ai / ZCode now reads the encrypted Coding Plan account key used by current ZCode releases while retaining the legacy config and existing GLM key sources.
+- **Installed Copilot and Gemini sessions.** Copilot can use GitHub CLI credentials stored in the OS keychain. On Windows, Gemini can fall back from CLI OAuth to the signed-in Gemini desktop session and show the consumer Google AI plan's 5-hour and weekly limits. The standalone provider is labeled Grok CLI to distinguish it from Cursor's built-in Grok Bot allowance.
 - **Edge-aware cards.** Detail and settings cards move to the inward side after the bar is snapped to another edge, including the bottom edge.
 
 ### 0.0.28 — 2026-09-11
@@ -161,6 +162,7 @@ Notable changes to UsageBar. Dates are UTC+8.
 - **双额度紧凑显示。** 每个提供商可同时显示会话 / 5 小时额度与周额度，只保留上下排列的两个数字。每个提供商可使用自动选择，或指定最多两个额度窗口；原有完整提供商目录、显示开关和排序均保留。
 - **托盘额度摘要。** 鼠标悬停托盘图标时显示缓存额度；系统不提供原生悬停事件时，托盘菜单和提示文本仍显示同一摘要。
 - **新版 ZCode 凭据。** z.ai / ZCode 现可读取新版 ZCode 保存的加密 Coding Plan 账户密钥，同时保留旧版配置和已有 GLM 密钥来源。
+- **已安装的 Copilot 与 Gemini 会话。** Copilot 可读取由 GitHub CLI 保存在系统钥匙串中的凭据。Windows 上的 Gemini 可在 CLI OAuth 不可用时读取已登录的 Gemini 桌面会话，并显示 consumer Google AI 套餐的 5 小时与周额度。独立提供商标为 Grok CLI，以区别于 Cursor 内置的 Grok Bot 额度。
 - **贴边方向感知。** 将栏吸附到其他边缘（包括底边）后，详情卡和设置卡会移动到屏幕内侧。
 
 ### 0.0.28 — 2026-09-11

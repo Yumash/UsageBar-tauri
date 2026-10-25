@@ -81,7 +81,7 @@ const REFRESH_SECS = [15, 30, 60, 120, 300, 600, 0];
 const VENDORS = {
   codex: "Codex",
   cursor: "Cursor",
-  grok: "Grok",
+  grok: "Grok CLI",
   glm: "z.ai",
   zcode: "z.ai Coding Plan",
   claude: "Claude",
@@ -1248,7 +1248,7 @@ let osName = "macos";
 let snaps = [
   { id: "codex", title: "Codex Usage", headlinePercent: null, metrics: [], error: null, loading: true },
   { id: "cursor", title: "Cursor Usage", headlinePercent: null, metrics: [], error: null, loading: true },
-  { id: "grok", title: "Grok Usage", headlinePercent: null, metrics: [], error: null, loading: true },
+  { id: "grok", title: "Grok CLI Usage", headlinePercent: null, metrics: [], error: null, loading: true },
   { id: "glm", title: "GLM Usage", headlinePercent: null, metrics: [], error: null, loading: true },
 ];
 let hovered = null;

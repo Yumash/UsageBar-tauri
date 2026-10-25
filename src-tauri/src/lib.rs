@@ -15,7 +15,6 @@ use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_opener::OpenerExt;
 
 static TRAY_GEN: AtomicU64 = AtomicU64::new(0);
@@ -610,10 +609,11 @@ pub(crate) fn apply_tray(app: &AppHandle, prefs: &Prefs) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_autostart::init(
-            MacosLauncher::LaunchAgent,
-            Some(vec![]),
-        ))
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .app_name("UsageBar")
+                .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             fetch_usage,

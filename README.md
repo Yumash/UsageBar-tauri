@@ -79,6 +79,7 @@ Needs a working login **on that same machine** for whichever tools you show. The
    - macOS Intel: `x64.dmg`
    - Windows: `x64-setup.exe`
    - Linux: `.AppImage` or `.deb`
+   - On Windows, setup shows a language selector and a guided wizard. Choose whether UsageBar starts with Windows on the options page. The finish page separately offers a desktop shortcut and immediate launch; both are off by default. You can change autostart later with **Open at login** in UsageBar settings.
 2. macOS builds are ad-hoc signed (not Apple-notarized). After dragging `UsageBar.app` into **Applications**, run this once in Terminal (required on macOS Sequoia / Tahoe; “Right-click → Open” often does nothing):
 
    ```bash

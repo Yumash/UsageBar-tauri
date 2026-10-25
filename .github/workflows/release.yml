@@ -51,6 +51,7 @@ jobs:
           releaseBody: |
             ### What’s new
 
+            - Add a guided multilingual Windows installer with an explicit Start with Windows option and no automatic post-install launch.
             - Show the session / 5-hour and weekly quotas together as two compact values, with per-provider Auto or explicit metric selection.
             - Add cached quota summaries and full controls to the tray, Russian localization, and edge-aware cards for every dock position.
             - Improve current ZCode/z.ai, GitHub Copilot, and Windows Gemini Desktop session discovery while preserving every existing provider.
@@ -61,7 +62,7 @@ jobs:
 
             - **macOS Apple Silicon (M1/M2/M3/M4):** `aarch64.dmg`
             - **macOS Intel:** `x64.dmg`
-            - **Windows:** `x64-setup.exe`
+            - **Windows:** `x64-setup.exe` (guided installer)
             - **Linux:** `.AppImage` or `.deb`
 
             macOS builds are ad-hoc signed (not notarized). After copying `UsageBar.app` to Applications, run:
@@ -77,6 +78,7 @@ jobs:
 
             ### 更新说明
 
+            - 新增多语言 Windows 安装向导，可明确选择随 Windows 启动，并且安装完成后不会自动运行应用。
             - 同时显示会话 / 5 小时与周额度两个紧凑数字，并可为每个提供商使用自动或明确的额度窗口选择。
             - 托盘加入缓存额度摘要和完整控制，新增俄语界面，所有贴边方向的卡片都会朝屏幕内侧打开。
             - 改进新版 ZCode/z.ai、GitHub Copilot 与 Windows Gemini Desktop 会话发现，同时保留全部现有提供商。
@@ -87,7 +89,7 @@ jobs:
 
             - **macOS 苹果芯片（M 系列）：** `aarch64.dmg`
             - **macOS Intel：** `x64.dmg`
-            - **Windows：** `x64-setup.exe`
+            - **Windows：** `x64-setup.exe`（引导式安装程序）
             - **Linux：** `.AppImage` 或 `.deb`
 
             macOS 第一次请先拖到「应用程序」，再在终端执行：
@@ -103,6 +105,7 @@ jobs:
 
             ### Что нового
 
+            - Добавлен полноценный многоязычный мастер установки Windows с выбором автозапуска и без автоматического запуска приложения после установки.
             - Одновременно показываются два компактных значения: текущая/5-часовая сессия и недельный лимит. Для каждого провайдера доступны автоматический или явный выбор окон.
             - В трее появились сводка лимитов и полное управление, добавлена русская локализация, а карточки открываются внутрь экрана при любом положении панели.
             - Улучшено определение актуальных сессий ZCode/z.ai, GitHub Copilot и Gemini Desktop в Windows без удаления существующих провайдеров.
@@ -113,7 +116,7 @@ jobs:
 
             - **macOS Apple Silicon (M1/M2/M3/M4):** `aarch64.dmg`
             - **macOS Intel:** `x64.dmg`
-            - **Windows:** `x64-setup.exe`
+            - **Windows:** `x64-setup.exe` (мастер установки)
             - **Linux:** `.AppImage` или `.deb`
 
             Сборки macOS подписаны ad-hoc и не нотарифицированы Apple. После копирования `UsageBar.app` в Applications выполните:

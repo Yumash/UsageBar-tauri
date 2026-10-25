@@ -14,7 +14,7 @@ Notable changes to UsageBar. Dates are UTC+8.
 - **Installed Copilot and Gemini sessions.** Copilot can use GitHub CLI credentials stored in the OS keychain. On Windows, Gemini can fall back from CLI OAuth to the signed-in Gemini desktop session and show the consumer Google AI plan's 5-hour and weekly limits. The standalone provider is labeled Grok CLI to distinguish it from Cursor's built-in Grok Bot allowance.
 - **Reliable Gemini Desktop reads.** UsageBar now handles multiple signed-in Google account routes and keeps a DPAPI-protected local session cache because the running desktop app locks its Chromium cookie database.
 - **Edge-aware cards.** Detail and settings cards move to the inward side after the bar is snapped to another edge, including the bottom edge.
-- **Russian documentation.** Added a complete Russian README and synchronized provider credentials, build instructions, Gemini Desktop behavior, and troubleshooting across all language versions.
+- **Russian documentation and update notes.** Added a complete Russian README, native Russian release-note parsing, and synchronized provider credentials, build instructions, Gemini Desktop behavior, and troubleshooting across all language versions.
 
 ### 0.0.28 — 2026-09-11
 
@@ -167,7 +167,7 @@ Notable changes to UsageBar. Dates are UTC+8.
 - **已安装的 Copilot 与 Gemini 会话。** Copilot 可读取由 GitHub CLI 保存在系统钥匙串中的凭据。Windows 上的 Gemini 可在 CLI OAuth 不可用时读取已登录的 Gemini 桌面会话，并显示 consumer Google AI 套餐的 5 小时与周额度。独立提供商标为 Grok CLI，以区别于 Cursor 内置的 Grok Bot 额度。
 - **可靠读取 Gemini Desktop。** UsageBar 现在会尝试多个已登录 Google 帐号路由，并保留由 DPAPI 保护的本机会话缓存，以便桌面应用锁定 Chromium cookie 数据库时仍能读取用量。
 - **贴边方向感知。** 将栏吸附到其他边缘（包括底边）后，详情卡和设置卡会移动到屏幕内侧。
-- **俄文文档。** 新增完整俄文 README，并同步各语言版本中的提供商凭据、构建说明、Gemini Desktop 行为与故障排查。
+- **俄文文档与更新说明。** 新增完整俄文 README 和原生俄文 Release Notes 解析，并同步各语言版本中的提供商凭据、构建说明、Gemini Desktop 行为与故障排查。
 
 ### 0.0.28 — 2026-09-11
 

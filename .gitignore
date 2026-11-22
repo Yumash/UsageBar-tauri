@@ -26,3 +26,31 @@ src-tauri/gen/schemas
 *.njsproj
 *.sln
 *.sw?
+
+# TAUSIK — generated / runtime (do not commit)
+.claude/
+.cursor/
+.kilo/
+.opencode/
+.qwen/
+.windsurf/
+.agents/
+.kilocode/
+.claude-project/
+opencode.json
+.mcp.json
+.cursorrules
+bootstrap/
+harness/
+scripts/hooks/
+.cursor/hooks/
+.cursor/mcp/
+.cursor/skills/
+.cursor/agents/
+.cursor/roles/
+.cursor/references/
+.codex/hooks/
+.codex/skills/
+
+# TAUSIK — generated / runtime (do not commit)
+.tausik-lib/
